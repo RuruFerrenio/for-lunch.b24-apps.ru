@@ -10,7 +10,6 @@ import InfoCircleIcon from '@bitrix24/b24icons-vue/main/InfoCircleIcon'
 import NoteCircleIcon from '@bitrix24/b24icons-vue/main/NoteCircleIcon'
 import RefreshIcon from '@bitrix24/b24icons-vue/outline/RefreshIcon'
 import RestaurantIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
-import ArrowRightIcon from '@bitrix24/b24icons-vue/outline/ArrowRightIcon'
 import * as v from 'valibot'
 import type { FormSubmitEvent } from '@bitrix24/b24ui-nuxt'
 
@@ -179,12 +178,12 @@ const showUnavailableMessage = computed(() => {
 // Форматирование времени обеда для отображения
 const formattedLunchStart = computed(() => {
   if (!lunchForm.timeRange?.start) return '—'
-  return lunchForm.timeRange.start.toString().slice(0, 5)
+  return `${lunchForm.timeRange.start.hour.toString().padStart(2, '0')}:${lunchForm.timeRange.start.minute.toString().padStart(2, '0')}`
 })
 
 const formattedLunchEnd = computed(() => {
   if (!lunchForm.timeRange?.end) return '—'
-  return lunchForm.timeRange.end.toString().slice(0, 5)
+  return `${lunchForm.timeRange.end.hour.toString().padStart(2, '0')}:${lunchForm.timeRange.end.minute.toString().padStart(2, '0')}`
 })
 
 const hasLunchSettings = computed(() => {
@@ -218,8 +217,8 @@ const getCookie = (name: string): string | null => {
 
 const saveLunchSettingsToCookies = () => {
   if (lunchForm.timeRange?.start && lunchForm.timeRange?.end) {
-    setCookie('lunch_start_time', lunchForm.timeRange.start.toString().slice(0, 5))
-    setCookie('lunch_end_time', lunchForm.timeRange.end.toString().slice(0, 5))
+    setCookie('lunch_start_time', `${lunchForm.timeRange.start.hour}:${lunchForm.timeRange.start.minute}`)
+    setCookie('lunch_end_time', `${lunchForm.timeRange.end.hour}:${lunchForm.timeRange.end.minute}`)
   } else {
     setCookie('lunch_start_time', '', 0)
     setCookie('lunch_end_time', '', 0)
@@ -694,18 +693,18 @@ onUnmounted(() => {
                 :state="lunchForm"
                 @submit="handleSaveLunchSettings"
             >
-              <!-- Range Input Time с поддержкой часов и минут -->
+              <!-- Range Input Time -->
               <div class="flex justify-center">
-                <B24FormField name="timeRange" class="w-full">
-                  <B24InputTime
-                      range
-                  />
-                  <template #help>
-                    <div class="text-xs text-gray-500 mt-1 text-center">
-                      Выберите время начала и окончания обеда
-                    </div>
-                  </template>
-                </B24FormField>
+                <B24InputTime
+                    v-model="lunchForm.timeRange"
+                    range
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    highlight
+                    tag="Интервал обеда"
+                    tag-color="air-primary-warning"
+                />
               </div>
 
               <!-- Отображение выбранного интервала -->
@@ -716,7 +715,7 @@ onUnmounted(() => {
                 </span>
               </div>
               <div v-else class="mt-4 text-center text-xs text-gray-400">
-                Выберите интервал обеда (часы и минуты)
+                Выберите интервал обеда
               </div>
 
               <!-- Кнопка сохранения -->
