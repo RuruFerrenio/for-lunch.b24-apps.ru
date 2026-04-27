@@ -10,7 +10,7 @@ import CircleCheckIcon from '@bitrix24/b24icons-vue/outline/CircleCheckIcon'
 import InfoCircleIcon from '@bitrix24/b24icons-vue/main/InfoCircleIcon'
 import NoteCircleIcon from '@bitrix24/b24icons-vue/main/NoteCircleIcon'
 import RefreshIcon from '@bitrix24/b24icons-vue/outline/RefreshIcon'
-import RestaurantIcon from '@bitrix24/b24icons-vue/outline/RestaurantIcon'
+import RestaurantIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 
 type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
 
