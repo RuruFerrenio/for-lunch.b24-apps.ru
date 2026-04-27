@@ -694,21 +694,21 @@ onUnmounted(() => {
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-xs text-gray-500 mb-1">Время начала обеда</label>
               <B24InputTime
                   v-model="lunchSettings.startTime"
                   :hour-cycle="24"
                   size="lg"
                   color="air-primary"
+                  tag="Время начала обеда"
               />
             </div>
             <div>
-              <label class="block text-xs text-gray-500 mb-1">Время завершения обеда</label>
               <B24InputTime
                   v-model="lunchSettings.endTime"
                   :hour-cycle="24"
                   size="lg"
                   color="air-primary"
+                  tag="Время завершения обеда"
               />
             </div>
           </div>

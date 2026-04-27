@@ -394,25 +394,21 @@ watch(() => formData.value.lunchEnd.method, () => {
           <div class="space-y-4 pt-4 border-t">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Время начала обеда
-                </label>
                 <B24InputTime
                     v-model="formData.defaultLunchTime.startTime"
                     :hour-cycle="24"
                     size="lg"
                     color="air-primary"
+                    tag="Время начала обеда"
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Время завершения обеда
-                </label>
                 <B24InputTime
                     v-model="formData.defaultLunchTime.endTime"
                     :hour-cycle="24"
                     size="lg"
                     color="air-primary"
+                    tag="Время завершения обеда"
                 />
               </div>
             </div>
