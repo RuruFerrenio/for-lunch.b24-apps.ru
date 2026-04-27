@@ -400,6 +400,8 @@ watch(() => formData.value.lunchEnd.method, () => {
                     size="xl"
                     color="air-primary"
                     tag="Время начала обеда"
+                    rounded
+                    highlight
                 />
               </div>
               <div>
@@ -409,6 +411,8 @@ watch(() => formData.value.lunchEnd.method, () => {
                     size="xl"
                     color="air-primary"
                     tag="Время завершения обеда"
+                    rounded
+                    highlight
                 />
               </div>
             </div>

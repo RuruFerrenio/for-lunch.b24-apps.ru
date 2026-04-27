@@ -700,6 +700,8 @@ onUnmounted(() => {
                   size="xl"
                   color="air-primary"
                   tag="Время начала обеда"
+                  rounded
+                  highlight
               />
             </div>
             <div>
@@ -709,6 +711,8 @@ onUnmounted(() => {
                   size="xl"
                   color="air-primary"
                   tag="Время завершения обеда"
+                  rounded
+                  highlight
               />
             </div>
           </div>
