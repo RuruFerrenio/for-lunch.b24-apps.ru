@@ -686,7 +686,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Настройки времени обеда -->
-        <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="mb-6 p-4 rounded-lg border border-gray-200">
           <h3 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
             <ClockIcon class="w-4 h-4" />
             Настройки времени обеда
@@ -716,9 +716,6 @@ onUnmounted(() => {
           <div class="flex items-center justify-between">
             <div v-if="hasLunchSettings" class="text-xs text-gray-400">
               ⏰ Обед с {{ formattedLunchStart }} до {{ formattedLunchEnd }}
-            </div>
-            <div v-else class="text-xs text-gray-400">
-              ⚠️ Время обеда не настроено
             </div>
             <B24Button
                 @click="saveLunchSettings"

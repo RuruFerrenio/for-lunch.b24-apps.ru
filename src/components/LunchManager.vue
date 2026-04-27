@@ -475,11 +475,6 @@ onMounted(() => {
         {{ completionMessage }}
       </p>
 
-      <!-- Текущий статус -->
-      <div v-if="workdayInfo && !isActionCompleted && !error" class="mb-6 text-sm text-gray-500">
-        Текущий статус: {{ getStatusText(workdayInfo.STATUS) }}
-      </div>
-
       <!-- Кнопка действия -->
       <div class="mb-4" v-if="!isActionCompleted && !error">
         <B24Button
