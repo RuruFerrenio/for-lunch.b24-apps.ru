@@ -700,14 +700,6 @@ onUnmounted(() => {
                   <B24InputTime
                       v-model="lunchForm.timeRange"
                       range
-                      :hour-cycle="24"
-                      size="xl"
-                      color="air-primary"
-                      highlight
-                      tag="Интервал обеда"
-                      tag-color="air-primary-warning"
-                      :granularity="'minute'"
-                      :separator-icon="ArrowRightIcon"
                   />
                   <template #help>
                     <div class="text-xs text-gray-500 mt-1 text-center">
