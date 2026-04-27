@@ -25,7 +25,10 @@ interface FormData {
   }
 }
 
-// Инициализация formData
+// Инициализация formData с дефолтными значениями времени
+const defaultStartTime = new Time(12, 0, 0)
+const defaultEndTime = new Time(13, 0, 0)
+
 const formData = ref<FormData>({
   lunchStart: {
     enabled: false,
@@ -43,13 +46,14 @@ const formData = ref<FormData>({
     enabled: false
   },
   defaultLunchTime: {
-    startTime: null,
-    endTime: null
+    startTime: defaultStartTime,  // Начальное значение
+    endTime: defaultEndTime       // Начальное значение
   }
 })
 
 const isProcessing = ref(false)
 const isBitrixLoaded = ref(false)
+const isLoading = ref(true)
 
 // Вычисляемые свойства для отображения текста
 const getLunchStartMethodText = computed(() => {
@@ -74,12 +78,14 @@ const getLunchEndMethodText = computed(() => {
 
 const formattedDefaultLunchStart = computed(() => {
   if (!formData.value.defaultLunchTime.startTime) return '—'
-  return formData.value.defaultLunchTime.startTime.toString().slice(0, 5)
+  const time = formData.value.defaultLunchTime.startTime
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
 })
 
 const formattedDefaultLunchEnd = computed(() => {
   if (!formData.value.defaultLunchTime.endTime) return '—'
-  return formData.value.defaultLunchTime.endTime.toString().slice(0, 5)
+  const time = formData.value.defaultLunchTime.endTime
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
 })
 
 // Функции для уведомлений
@@ -119,8 +125,15 @@ async function saveDefaultLunchTimeSettings(): Promise<void> {
   try {
     isProcessing.value = true
     if (isBitrixLoaded.value && typeof BX24 !== 'undefined') {
-      await BX24.appOption.set('lunch_default_start_time', formData.value.defaultLunchTime.startTime?.toString() || '')
-      await BX24.appOption.set('lunch_default_end_time', formData.value.defaultLunchTime.endTime?.toString() || '')
+      const startTimeStr = formData.value.defaultLunchTime.startTime
+          ? `${formData.value.defaultLunchTime.startTime.hour.toString().padStart(2, '0')}:${formData.value.defaultLunchTime.startTime.minute.toString().padStart(2, '0')}`
+          : ''
+      const endTimeStr = formData.value.defaultLunchTime.endTime
+          ? `${formData.value.defaultLunchTime.endTime.hour.toString().padStart(2, '0')}:${formData.value.defaultLunchTime.endTime.minute.toString().padStart(2, '0')}`
+          : ''
+
+      await BX24.appOption.set('lunch_default_start_time', startTimeStr)
+      await BX24.appOption.set('lunch_default_end_time', endTimeStr)
     }
     showNotification('success', 'Настройки времени обеда сохранены')
   } catch {
@@ -257,18 +270,11 @@ async function loadSettings(): Promise<void> {
 
   try {
     const [
-      // Настройки активности в выходные
       weekendActivityEnabled,
-
-      // Настройки общего времени обеда
       lunchDefaultStartTime,
       lunchDefaultEndTime,
-
-      // Настройки начала обеда
       lunchStartEnabled,
       lunchStartMethod,
-
-      // Настройки завершения обеда
       lunchEndEnabled,
       lunchEndMethod
     ] = await Promise.all([
@@ -311,6 +317,8 @@ async function loadSettings(): Promise<void> {
 
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -324,6 +332,8 @@ onMounted(async () => {
       isBitrixLoaded.value = true
       await loadSettings()
     })
+  } else {
+    isLoading.value = false
   }
 })
 
@@ -340,7 +350,7 @@ watch(() => formData.value.lunchEnd.method, () => {
 </script>
 
 <template>
-  <div>
+  <div v-if="!isLoading">
     <!-- Блок 1: Активность в выходные -->
     <B24Card class="mb-8">
       <div class="p-0 md:p-6">
@@ -390,7 +400,17 @@ watch(() => formData.value.lunchEnd.method, () => {
                   Время начала обеда
                 </label>
                 <B24InputTime
+                    v-if="formData.defaultLunchTime.startTime !== null"
                     v-model="formData.defaultLunchTime.startTime"
+                    :hour-cycle="24"
+                    size="md"
+                    color="air-primary"
+                    placeholder="Выберите время"
+                />
+                <B24InputTime
+                    v-else
+                    :model-value="defaultStartTime"
+                    @update:model-value="(val) => formData.defaultLunchTime.startTime = val"
                     :hour-cycle="24"
                     size="md"
                     color="air-primary"
@@ -402,7 +422,17 @@ watch(() => formData.value.lunchEnd.method, () => {
                   Время завершения обеда
                 </label>
                 <B24InputTime
+                    v-if="formData.defaultLunchTime.endTime !== null"
                     v-model="formData.defaultLunchTime.endTime"
+                    :hour-cycle="24"
+                    size="md"
+                    color="air-primary"
+                    placeholder="Выберите время"
+                />
+                <B24InputTime
+                    v-else
+                    :model-value="defaultEndTime"
+                    @update:model-value="(val) => formData.defaultLunchTime.endTime = val"
                     :hour-cycle="24"
                     size="md"
                     color="air-primary"
@@ -727,4 +757,22 @@ watch(() => formData.value.lunchEnd.method, () => {
       </div>
     </B24Card>
   </div>
+  <div v-else class="flex items-center justify-center py-12">
+    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
 </template>
+
+<style scoped>
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

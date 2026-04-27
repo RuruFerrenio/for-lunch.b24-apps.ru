@@ -122,7 +122,7 @@ onUnmounted(() => {
               <PowerIcon class="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h3 class="text-lg font-semibold text-gray-900">Удобное начало и завершение рабочего дня</h3>
+              <h3 class="text-lg font-semibold text-gray-900">На обед!</h3>
               <p class="text-sm text-gray-500">Версия 1.0.0</p>
             </div>
           </div>
@@ -174,7 +174,7 @@ onUnmounted(() => {
 
               <!-- Техническая поддержка -->
               <a
-                  href="mailto:technogalera@yandex.ru?subject=Поддержка приложения Удобное начало и завершение рабочего дня"
+                  href="mailto:technogalera@yandex.ru?subject=Поддержка приложения На обед!"
                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
               >
                 <MailOutIcon class="w-5 h-5 mr-3 text-gray-500" />
