@@ -685,48 +685,74 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Настройки времени обеда -->
-        <div class="mb-6 p-4 rounded-lg border border-gray-200">
-          <h3 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-            <ClockIcon class="w-4 h-4" />
-            Настройки времени обеда
-          </h3>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
-            <div>
-              <B24InputTime
-                  v-model="lunchSettings.startTime"
-                  :hour-cycle="24"
-                  size="xl"
-                  color="air-primary"
-                  tag="Время начала обеда"
-                  highlight
-              />
-            </div>
-            <div>
-              <B24InputTime
-                  v-model="lunchSettings.endTime"
-                  :hour-cycle="24"
-                  size="xl"
-                  color="air-primary"
-                  tag="Время завершения обеда"
-                  highlight
-              />
-            </div>
+        <!-- Настройки времени обеда - улучшенная группировка -->
+        <div class="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+          <div class="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
+            <h3 class="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <ClockIcon class="w-4 h-4 text-amber-600" />
+              Настройки времени обеда
+            </h3>
           </div>
 
-          <div class="flex items-center justify-between">
-            <div v-if="hasLunchSettings" class="text-xs text-gray-400">
-              ⏰ Обед с {{ formattedLunchStart }} до {{ formattedLunchEnd }}
+          <div class="p-4">
+            <!-- Группированный блок времени -->
+            <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
+              <!-- Время начала -->
+              <div class="flex-1 min-w-[120px]">
+                <div class="text-xs text-gray-500 mb-1 text-center">Начало</div>
+                <B24InputTime
+                    v-model="lunchSettings.startTime"
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    highlight
+                />
+              </div>
+
+              <!-- Разделитель -->
+              <div class="text-gray-400 font-medium text-lg">—</div>
+
+              <!-- Время окончания -->
+              <div class="flex-1 min-w-[120px]">
+                <div class="text-xs text-gray-500 mb-1 text-center">Окончание</div>
+                <B24InputTime
+                    v-model="lunchSettings.endTime"
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    highlight
+                />
+              </div>
             </div>
-            <B24Button
-                @click="saveLunchSettings"
-                size="sm"
-                variant="outline"
-                color="air-primary"
-            >
-              {{ isSettingsSaved ? '✓ Сохранено' : 'Сохранить' }}
-            </B24Button>
+
+            <!-- Отображение выбранного интервала -->
+            <div v-if="hasLunchSettings" class="mt-4 text-center">
+              <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+                <ClockIcon class="w-3 h-3" />
+                {{ formattedLunchStart }} → {{ formattedLunchEnd }}
+              </span>
+            </div>
+            <div v-else class="mt-4 text-center text-xs text-gray-400">
+              Выберите время начала и окончания обеда
+            </div>
+
+            <!-- Кнопка сохранения -->
+            <div class="mt-4 flex justify-center">
+              <B24Button
+                  @click="saveLunchSettings"
+                  size="sm"
+                  variant="outline"
+                  color="air-primary"
+                  class="min-w-[120px]"
+              >
+                <template #leading>
+                  <svg v-if="isSettingsSaved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                </template>
+                {{ isSettingsSaved ? 'Сохранено' : 'Сохранить настройки' }}
+              </B24Button>
+            </div>
           </div>
         </div>
 
