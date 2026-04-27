@@ -697,7 +697,7 @@ onUnmounted(() => {
               <B24InputTime
                   v-model="lunchSettings.startTime"
                   :hour-cycle="24"
-                  size="lg"
+                  size="xl"
                   color="air-primary"
                   tag="Время начала обеда"
               />
@@ -706,7 +706,7 @@ onUnmounted(() => {
               <B24InputTime
                   v-model="lunchSettings.endTime"
                   :hour-cycle="24"
-                  size="lg"
+                  size="xl"
                   color="air-primary"
                   tag="Время завершения обеда"
               />
