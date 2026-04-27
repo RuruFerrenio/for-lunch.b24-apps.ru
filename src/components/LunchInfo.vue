@@ -698,7 +698,6 @@ onUnmounted(() => {
               <div class="flex justify-center">
                 <B24FormField name="timeRange" class="w-full max-w-md">
                   <B24InputTime
-                      v-model="lunchForm.timeRange"
                       range
                   />
                   <template #help>
