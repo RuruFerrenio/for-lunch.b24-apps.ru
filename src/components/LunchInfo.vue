@@ -51,7 +51,7 @@ const currentUser = ref<UserProfile | null>(null)
 const error = ref<string | null>(null)
 const isRefreshing = ref(false)
 
-// Настройки обеда для формы
+// Настройки обеда для формы - изначальное значение null
 const lunchForm = reactive<LunchFormData>({
   timeRange: null
 })
@@ -687,26 +687,24 @@ onUnmounted(() => {
             </h3>
           </div>
 
-          <B24InputTime
-              v-model="lunchForm.timeRange"
-              range
-              :hour-cycle="24"
-              size="xl"
-              color="air-primary"
-              highlight
-              tag="Интервал обеда"
-              tag-color="air-primary-warning"
-          />
-
           <div class="p-4">
             <B24Form
                 :schema="lunchSchema"
                 :state="lunchForm"
                 @submit="handleSaveLunchSettings"
             >
-              <!-- Range Input Time -->
+              <!-- Range Input Time с поддержкой минут -->
               <div class="flex justify-center">
-
+                <B24InputTime
+                    v-model="lunchForm.timeRange"
+                    range
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    highlight
+                    tag="Интервал обеда"
+                    tag-color="air-primary-warning"
+                />
               </div>
 
               <!-- Отображение выбранного интервала -->
@@ -717,7 +715,7 @@ onUnmounted(() => {
                 </span>
               </div>
               <div v-else class="mt-4 text-center text-xs text-gray-400">
-                Выберите интервал обеда
+                Выберите интервал обеда (часы и минуты)
               </div>
 
               <!-- Кнопка сохранения -->
