@@ -696,7 +696,7 @@ onUnmounted(() => {
             >
               <!-- Range Input Time с поддержкой часов и минут -->
               <div class="flex justify-center">
-                <B24FormField name="timeRange" class="w-full max-w-md">
+                <B24FormField name="timeRange" class="w-full">
                   <B24InputTime
                       range
                   />
