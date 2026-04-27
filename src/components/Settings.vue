@@ -25,10 +25,7 @@ interface FormData {
   }
 }
 
-// Инициализация formData с дефолтными значениями времени
-const defaultStartTime = new Time(12, 0, 0)
-const defaultEndTime = new Time(13, 0, 0)
-
+// Инициализация formData
 const formData = ref<FormData>({
   lunchStart: {
     enabled: false,
@@ -46,14 +43,13 @@ const formData = ref<FormData>({
     enabled: false
   },
   defaultLunchTime: {
-    startTime: defaultStartTime,  // Начальное значение
-    endTime: defaultEndTime       // Начальное значение
+    startTime: null,
+    endTime: null
   }
 })
 
 const isProcessing = ref(false)
 const isBitrixLoaded = ref(false)
-const isLoading = ref(true)
 
 // Вычисляемые свойства для отображения текста
 const getLunchStartMethodText = computed(() => {
@@ -255,10 +251,13 @@ function normalizeMethod(value: unknown, validMethods: readonly string[]): 'auto
 }
 
 function parseTimeFromString(timeStr: string): Time | null {
-  if (!timeStr || timeStr === '') return null
+  if (!timeStr || timeStr === '' || timeStr === 'null') return null
   try {
     const [hours, minutes] = timeStr.split(':')
-    return new Time(parseInt(hours), parseInt(minutes), 0)
+    if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
+      return new Time(parseInt(hours), parseInt(minutes), 0)
+    }
+    return null
   } catch (e) {
     console.error('Ошибка парсинга времени:', e)
     return null
@@ -270,11 +269,18 @@ async function loadSettings(): Promise<void> {
 
   try {
     const [
+      // Настройки активности в выходные
       weekendActivityEnabled,
+
+      // Настройки общего времени обеда
       lunchDefaultStartTime,
       lunchDefaultEndTime,
+
+      // Настройки начала обеда
       lunchStartEnabled,
       lunchStartMethod,
+
+      // Настройки завершения обеда
       lunchEndEnabled,
       lunchEndMethod
     ] = await Promise.all([
@@ -294,12 +300,8 @@ async function loadSettings(): Promise<void> {
     const startTime = parseTimeFromString(lunchDefaultStartTime)
     const endTime = parseTimeFromString(lunchDefaultEndTime)
 
-    if (startTime) {
-      formData.value.defaultLunchTime.startTime = startTime
-    }
-    if (endTime) {
-      formData.value.defaultLunchTime.endTime = endTime
-    }
+    formData.value.defaultLunchTime.startTime = startTime
+    formData.value.defaultLunchTime.endTime = endTime
 
     // Загрузка настроек начала обеда
     formData.value.lunchStart.enabled = normalizeBoolean(lunchStartEnabled)
@@ -317,8 +319,6 @@ async function loadSettings(): Promise<void> {
 
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error)
-  } finally {
-    isLoading.value = false
   }
 }
 
@@ -332,8 +332,6 @@ onMounted(async () => {
       isBitrixLoaded.value = true
       await loadSettings()
     })
-  } else {
-    isLoading.value = false
   }
 })
 
@@ -350,7 +348,7 @@ watch(() => formData.value.lunchEnd.method, () => {
 </script>
 
 <template>
-  <div v-if="!isLoading">
+  <div>
     <!-- Блок 1: Активность в выходные -->
     <B24Card class="mb-8">
       <div class="p-0 md:p-6">
@@ -400,21 +398,10 @@ watch(() => formData.value.lunchEnd.method, () => {
                   Время начала обеда
                 </label>
                 <B24InputTime
-                    v-if="formData.defaultLunchTime.startTime !== null"
                     v-model="formData.defaultLunchTime.startTime"
                     :hour-cycle="24"
                     size="md"
                     color="air-primary"
-                    placeholder="Выберите время"
-                />
-                <B24InputTime
-                    v-else
-                    :model-value="defaultStartTime"
-                    @update:model-value="(val) => formData.defaultLunchTime.startTime = val"
-                    :hour-cycle="24"
-                    size="md"
-                    color="air-primary"
-                    placeholder="Выберите время"
                 />
               </div>
               <div>
@@ -422,21 +409,10 @@ watch(() => formData.value.lunchEnd.method, () => {
                   Время завершения обеда
                 </label>
                 <B24InputTime
-                    v-if="formData.defaultLunchTime.endTime !== null"
                     v-model="formData.defaultLunchTime.endTime"
                     :hour-cycle="24"
                     size="md"
                     color="air-primary"
-                    placeholder="Выберите время"
-                />
-                <B24InputTime
-                    v-else
-                    :model-value="defaultEndTime"
-                    @update:model-value="(val) => formData.defaultLunchTime.endTime = val"
-                    :hour-cycle="24"
-                    size="md"
-                    color="air-primary"
-                    placeholder="Выберите время"
                 />
               </div>
             </div>
@@ -757,22 +733,4 @@ watch(() => formData.value.lunchEnd.method, () => {
       </div>
     </B24Card>
   </div>
-  <div v-else class="flex items-center justify-center py-12">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-  </div>
 </template>
-
-<style scoped>
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-</style>
