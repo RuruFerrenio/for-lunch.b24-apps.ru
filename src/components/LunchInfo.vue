@@ -687,6 +687,17 @@ onUnmounted(() => {
             </h3>
           </div>
 
+          <B24InputTime
+              v-model="lunchForm.timeRange"
+              range
+              :hour-cycle="24"
+              size="xl"
+              color="air-primary"
+              highlight
+              tag="Интервал обеда"
+              tag-color="air-primary-warning"
+          />
+
           <div class="p-4">
             <B24Form
                 :schema="lunchSchema"
@@ -695,16 +706,7 @@ onUnmounted(() => {
             >
               <!-- Range Input Time -->
               <div class="flex justify-center">
-                <B24InputTime
-                    v-model="lunchForm.timeRange"
-                    range
-                    :hour-cycle="24"
-                    size="xl"
-                    color="air-primary"
-                    highlight
-                    tag="Интервал обеда"
-                    tag-color="air-primary-warning"
-                />
+
               </div>
 
               <!-- Отображение выбранного интервала -->
