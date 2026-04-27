@@ -9,7 +9,7 @@ import RefreshIcon from '@bitrix24/b24icons-vue/main/RefreshIcon'
 import SuccessIcon from '@bitrix24/b24icons-vue/button/SuccessIcon'
 import ErrorIcon from '@bitrix24/b24icons-vue/main/UnavailableIcon'
 import LoadingIcon from '@bitrix24/b24icons-vue/animated/LoaderWaitIcon'
-import CoffeeIcon from '@bitrix24/b24icons-vue/outline/CoffeeIcon'
+import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 
 // Состояние
 const currentStep = ref(1)

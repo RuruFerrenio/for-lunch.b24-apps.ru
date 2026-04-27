@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
-import CoffeeIcon from '@bitrix24/b24icons-vue/outline/CoffeeIcon'
-import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/BriefcaseIcon'
+import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+
 
 type LunchMode = 'start' | 'end'
 type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
