@@ -3,7 +3,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import Sidebar from './components/Sidebar.vue'
-import WorkdayManager from './components/WorkdayManager.vue'
+import LunchManager from './components/LunchManager.vue'
 
 const route = useRoute()
 
@@ -19,13 +19,13 @@ function getCookie(name: string): string | null {
   return null
 }
 
-const openAppMode = ref<'default' | 'modal'>('default')
-const modalType = ref<'start' | 'end' | null>(null)
+const openAppMode = ref<'default' | 'lunch'>('default')
+const lunchMode = ref<'start' | 'end' | null>(null)
 const isLoading = ref(true)
 
 // Теперь showSidebar зависит от openAppMode
 const showSidebar = computed(() => {
-  // Если мы в modal режиме - сайдбар не показываем
+  // Если мы в lunch режиме - сайдбар не показываем
   if (openAppMode.value !== 'default') return false
 
   // В default режиме показываем на определенных страницах
@@ -36,13 +36,13 @@ const showSidebar = computed(() => {
 
 onMounted(() => {
   // Читаем куки при загрузке
-  const mode = getCookie('open_app_mode')
-  const type = getCookie('modal_type')
+  const lunch = getCookie('lunch_mode')
+  const lunchType = getCookie('lunch_type')
 
-  if (mode === 'modal') {
-    openAppMode.value = 'modal'
-    if (type === 'start' || type === 'end') {
-      modalType.value = type
+  if (lunch === 'modal') {
+    openAppMode.value = 'lunch'
+    if (lunchType === 'start' || lunchType === 'end') {
+      lunchMode.value = lunchType
     }
   } else {
     openAppMode.value = 'default'
@@ -74,15 +74,15 @@ onMounted(() => {
               </div>
             </template>
 
-            <!-- Если кука modal - показываем WorkdayManager -->
-            <div v-else-if="openAppMode === 'modal'" class="lg:col-span-3">
-              <WorkdayManager
-                  v-if="modalType"
-                  :mode="modalType"
+            <!-- Если кука lunch - показываем LunchManager -->
+            <div v-else-if="openAppMode === 'lunch'" class="lg:col-span-3">
+              <LunchManager
+                  v-if="lunchMode"
+                  :mode="lunchMode"
                   :auto-close-delay="2000"
               />
               <div v-else class="text-center py-12">
-                <p class="text-gray-500">Не указан тип операции</p>
+                <p class="text-gray-500">Не указан тип операции для обеда</p>
               </div>
             </div>
           </div>

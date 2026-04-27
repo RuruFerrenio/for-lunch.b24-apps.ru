@@ -9,7 +9,7 @@ import RefreshIcon from '@bitrix24/b24icons-vue/main/RefreshIcon'
 import SuccessIcon from '@bitrix24/b24icons-vue/button/SuccessIcon'
 import ErrorIcon from '@bitrix24/b24icons-vue/main/UnavailableIcon'
 import LoadingIcon from '@bitrix24/b24icons-vue/animated/LoaderWaitIcon'
-import PowerIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+import CoffeeIcon from '@bitrix24/b24icons-vue/outline/CoffeeIcon'
 
 // Состояние
 const currentStep = ref(1)
@@ -32,44 +32,48 @@ const settingsStatus = ref(null)
 
 // Выбранные функции
 const selectedFeatures = ref({
-  workdayStart: true,    // Помощь в старте - по умолчанию включена
-  workdayEnd: true,      // Помощь в завершении - по умолчанию включена
+  lunchStart: true,    // Помощь в начале обеда - по умолчанию включена
+  lunchEnd: true,      // Помощь в завершении обеда - по умолчанию включена
   weekendActivity: false // Активность в выходные - по умолчанию выключена
 })
 
 // Расширенные настройки (методы)
 const configSettings = ref({
-  workdayStart: {
+  lunchStart: {
     enabled: true,
     method: 'modal'  // По умолчанию модальное окно
   },
-  workdayEnd: {
+  lunchEnd: {
     enabled: true,
     method: 'modal'  // По умолчанию модальное окно
   },
   weekendActivity: {
     enabled: false    // По умолчанию активность в выходные выключена
+  },
+  defaultLunchTime: {
+    startTime: '12:00',  // Время начала обеда по умолчанию
+    endTime: '13:00'     // Время завершения обеда по умолчанию
   }
 })
 
-// URL обработчиков
+// URL обработчиков (остаются те же)
 const HANDLERS = {
   pageBackgroundWorker: `${window.location.origin}/dist/widgets/background-handler`,
   restAppUri: `${window.location.origin}/dist/`
 }
 
-// Конфигурации встроек
+// Конфигурации встроек (адаптированные под обед)
 const PLACEMENT_CONFIGS = {
   PAGE_BACKGROUND_WORKER: {
     title: 'Фоновая встройка',
-    description: 'Автоматически определяет время старта и завершения рабочего дня и оповещает об этом сотрудника',
+    description: 'Автоматически определяет время начала и завершения обеденного перерыва и оповещает об этом сотрудника',
     options: {
       errorHandlerUrl: `${window.location.origin}/dist/widgets/background-error-handler`
     }
   },
   REST_APP_URI: {
-    title: 'Встройка для управления рабочим днем из уведомлений',
-    description: 'Позволяет сотруднику управлять статусом рабочего дня через сообщения в чатах или push-уведомлениях',
+    title: 'Встройка для управления обедом из уведомлений',
+    description: 'Позволяет сотруднику управлять обеденным перерывом через сообщения в чатах или push-уведомлениях',
     options: {}
   }
 }
@@ -168,22 +172,22 @@ const placementManager = {
               ru: {
                 TITLE: config.title,
                 DESCRIPTION: config.description,
-                GROUP_NAME: 'Инструменты контроля времени'
+                GROUP_NAME: 'Управление обеденным перерывом'
               },
               en: {
                 TITLE: config.title,
                 DESCRIPTION: config.description,
-                GROUP_NAME: 'Time control tools'
+                GROUP_NAME: 'Lunch break management'
               },
               be: {
                 TITLE: config.title,
                 DESCRIPTION: config.description,
-                GROUP_NAME: 'Інструменты кантролю часу'
+                GROUP_NAME: 'Кіраванне абедзенным перапынкам'
               },
               kk: {
                 TITLE: config.title,
                 DESCRIPTION: config.description,
-                GROUP_NAME: 'Уақытты бақылау құралдары'
+                GROUP_NAME: 'Түскі үзілісті басқару'
               }
             },
             OPTIONS: config.options
@@ -217,19 +221,22 @@ const placementManager = {
   }
 }
 
-// Сохранение настроек приложения (расширенная версия с новыми параметрами)
+// Сохранение настроек приложения (расширенная версия для обеда)
 const saveSettings = async () => {
   settingsStatus.value = 'loading'
   try {
     const settingsToSave = {
-      // Настройки старта рабочего дня
-      workday_start_enabled: selectedFeatures.value.workdayStart ? 'Y' : 'N',
-      workday_start_method: configSettings.value.workdayStart.method,
-      // Настройки завершения рабочего дня
-      workday_end_enabled: selectedFeatures.value.workdayEnd ? 'Y' : 'N',
-      workday_end_method: configSettings.value.workdayEnd.method,
+      // Настройки начала обеда
+      lunch_start_enabled: selectedFeatures.value.lunchStart ? 'Y' : 'N',
+      lunch_start_method: configSettings.value.lunchStart.method,
+      // Настройки завершения обеда
+      lunch_end_enabled: selectedFeatures.value.lunchEnd ? 'Y' : 'N',
+      lunch_end_method: configSettings.value.lunchEnd.method,
       // Настройки активности в выходные
-      weekend_activity_enabled: selectedFeatures.value.weekendActivity ? 'Y' : 'N',
+      lunch_weekend_activity_enabled: selectedFeatures.value.weekendActivity ? 'Y' : 'N',
+      // Настройки времени обеда по умолчанию
+      lunch_default_start_time: configSettings.value.defaultLunchTime.startTime,
+      lunch_default_end_time: configSettings.value.defaultLunchTime.endTime,
       // Флаг завершения установки
       installation_completed: 'Y'
     }
@@ -259,7 +266,7 @@ const registerPageBackgroundWorker = async () => {
   }
 }
 
-// Регистрация встройки REST_APP_URI (Встройка для управления рабочим днем из уведомлений)
+// Регистрация встройки REST_APP_URI
 const registerRestAppUri = async () => {
   placementStatus.value.restAppUri = 'loading'
   try {
@@ -375,11 +382,14 @@ onUnmounted(() => {
     <!-- Шапка с логотипом и заголовком -->
     <div class="text-center py-8 md:py-12">
       <div class="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-blue-100 rounded-2xl mb-4 md:mb-6">
-        <PowerIcon class="w-8 h-8 md:w-10 md:h-10 text-blue-600" />
+        <CoffeeIcon class="w-8 h-8 md:w-10 md:h-10 text-blue-600" />
       </div>
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 md:mb-3 px-2">
-        Установка приложения "Удобное начало и завершение рабочего дня"
+        Установка приложения "Умный обед"
       </h1>
+      <p class="text-sm md:text-base text-gray-600 max-w-2xl mx-auto px-4">
+        Автоматизация управления обеденными перерывами сотрудников
+      </p>
     </div>
 
     <!-- Прогресс-бар -->
@@ -406,10 +416,10 @@ onUnmounted(() => {
           </div>
           <div class="flex-1">
             <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-3 md:mb-4">
-              Добро пожаловать в систему контроля начала и завершения рабочего дня
+              Добро пожаловать в систему управления обеденными перерывами
             </h2>
             <p class="text-sm md:text-base text-gray-600 mb-4 md:mb-6">
-              Настройте систему, которая поможет сотрудникам запускать и завершать рабочий день своевременно.
+              Настройте систему, которая поможет сотрудникам своевременно начинать и завершать обеденный перерыв.
             </p>
 
             <div class="bg-blue-50 rounded-xl p-4 md:p-6 mb-4 md:mb-6">
@@ -419,11 +429,19 @@ onUnmounted(() => {
               <ul class="space-y-2 md:space-y-3">
                 <li class="flex items-start">
                   <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
-                  <span class="text-sm md:text-base text-gray-700">Помощь в старте и завершении рабочего дня</span>
+                  <span class="text-sm md:text-base text-gray-700">Помощь в начале и завершении обеденного перерыва</span>
                 </li>
                 <li class="flex items-start">
                   <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
                   <span class="text-sm md:text-base text-gray-700">Гибкая настройка способов уведомлений (модальное окно, автоматический, push, чат)</span>
+                </li>
+                <li class="flex items-start">
+                  <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
+                  <span class="text-sm md:text-base text-gray-700">Настройка времени обеда по умолчанию</span>
+                </li>
+                <li class="flex items-start">
+                  <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
+                  <span class="text-sm md:text-base text-gray-700">Учет активности в выходные дни</span>
                 </li>
               </ul>
             </div>
@@ -436,7 +454,7 @@ onUnmounted(() => {
       </B24PageCard>
     </B24PageSection>
 
-    <!-- Шаг 2: Настройка функций (расширенный) -->
+    <!-- Шаг 2: Настройка функций -->
     <B24PageSection v-else-if="currentStep === 2">
       <B24PageCard>
         <div class="flex flex-col md:flex-row md:items-start md:space-x-6">
@@ -450,26 +468,26 @@ onUnmounted(() => {
               Настройка основных функций системы
             </h2>
             <p class="text-sm md:text-base text-gray-600 mb-4 md:mb-6">
-              Выберите, какие функции системы контроля начала и завершения рабочего дня вы хотите активировать и настроить.
+              Выберите, какие функции управления обеденными перерывами вы хотите активировать и настроить.
             </p>
 
             <div class="space-y-6">
-              <!-- Помощь в старте рабочего дня (расширенная) -->
+              <!-- Помощь в начале обеда -->
               <B24PageCard>
                 <div class="flex items-center justify-between">
                   <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Помощь в старте рабочего дня</h3>
-                    <p class="text-sm text-gray-500">Автоматическая помощь сотрудникам в своевременном начале рабочего дня</p>
+                    <h3 class="text-lg font-semibold text-gray-900">Помощь в начале обеда</h3>
+                    <p class="text-sm text-gray-500">Автоматическая помощь сотрудникам в своевременном начале обеденного перерыва</p>
                   </div>
-                  <B24Switch v-model="selectedFeatures.workdayStart" />
+                  <B24Switch v-model="selectedFeatures.lunchStart" />
                 </div>
-                <div v-if="selectedFeatures.workdayStart" class="mt-4 pt-4 border-t">
-                  <p class="text-sm font-medium text-gray-700 mb-3">Способ старта рабочего дня:</p>
+                <div v-if="selectedFeatures.lunchStart" class="mt-4 pt-4 border-t">
+                  <p class="text-sm font-medium text-gray-700 mb-3">Способ начала обеда:</p>
                   <B24RadioGroup
-                      v-model="configSettings.workdayStart.method"
+                      v-model="configSettings.lunchStart.method"
                       :items="[
-                        { label: 'Автоматический старт', value: 'auto', description: 'Рабочий день начинается автоматически' },
-                        { label: 'Модальное окно с предупреждением', value: 'modal', description: 'Показывать окно с предложением начать рабочий день' },
+                        { label: 'Автоматическое начало обеда', value: 'auto', description: 'Обеденный перерыв начинается автоматически' },
+                        { label: 'Модальное окно с предложением', value: 'modal', description: 'Показывать окно с предложением начать обед' },
                         { label: 'Сообщение в чате', value: 'chat', description: 'Отправлять уведомление в чат Б24' },
                         { label: 'Push-уведомление', value: 'push', description: 'Отправлять push-уведомление' }
                       ]"
@@ -483,22 +501,22 @@ onUnmounted(() => {
                 </div>
               </B24PageCard>
 
-              <!-- Помощь в завершении рабочего дня (расширенная) -->
+              <!-- Помощь в завершении обеда -->
               <B24PageCard>
                 <div class="flex items-center justify-between">
                   <div>
-                    <h3 class="text-lg font-semibold text-gray-900">Помощь в завершении рабочего дня</h3>
-                    <p class="text-sm text-gray-500">Автоматическая помощь сотрудникам в своевременном завершении рабочего дня</p>
+                    <h3 class="text-lg font-semibold text-gray-900">Помощь в завершении обеда</h3>
+                    <p class="text-sm text-gray-500">Автоматическая помощь сотрудникам в своевременном завершении обеденного перерыва</p>
                   </div>
-                  <B24Switch v-model="selectedFeatures.workdayEnd" />
+                  <B24Switch v-model="selectedFeatures.lunchEnd" />
                 </div>
-                <div v-if="selectedFeatures.workdayEnd" class="mt-4 pt-4 border-t">
-                  <p class="text-sm font-medium text-gray-700 mb-3">Способ завершения рабочего дня:</p>
+                <div v-if="selectedFeatures.lunchEnd" class="mt-4 pt-4 border-t">
+                  <p class="text-sm font-medium text-gray-700 mb-3">Способ завершения обеда:</p>
                   <B24RadioGroup
-                      v-model="configSettings.workdayEnd.method"
+                      v-model="configSettings.lunchEnd.method"
                       :items="[
-                        { label: 'Автоматическое завершение', value: 'auto', description: 'Рабочий день завершается автоматически' },
-                        { label: 'Модальное окно с предупреждением', value: 'modal', description: 'Показывать окно с предложением завершить рабочий день' },
+                        { label: 'Автоматическое завершение обеда', value: 'auto', description: 'Обеденный перерыв завершается автоматически' },
+                        { label: 'Модальное окно с предложением', value: 'modal', description: 'Показывать окно с предложением завершить обед' },
                         { label: 'Сообщение в чате', value: 'chat', description: 'Отправлять уведомление в чат Б24' },
                         { label: 'Push-уведомление', value: 'push', description: 'Отправлять push-уведомление' }
                       ]"
@@ -512,7 +530,41 @@ onUnmounted(() => {
                 </div>
               </B24PageCard>
 
-              <!-- Активность в выходные (новая опция) -->
+              <!-- Настройка времени обеда по умолчанию -->
+              <B24PageCard>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Время обеда по умолчанию</h3>
+                    <p class="text-sm text-gray-500">Установите стандартное время для обеденного перерыва</p>
+                  </div>
+                </div>
+                <div class="mt-4 pt-4 border-t">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Время начала обеда</label>
+                      <B24InputTime
+                          v-model="configSettings.defaultLunchTime.startTime"
+                          :hour-cycle="24"
+                          size="md"
+                          color="air-primary"
+                          placeholder="Выберите время"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium text-gray-700 mb-1">Время завершения обеда</label>
+                      <B24InputTime
+                          v-model="configSettings.defaultLunchTime.endTime"
+                          :hour-cycle="24"
+                          size="md"
+                          color="air-primary"
+                          placeholder="Выберите время"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </B24PageCard>
+
+              <!-- Активность в выходные -->
               <B24PageCard>
                 <div class="flex items-center justify-between">
                   <div>
@@ -544,7 +596,7 @@ onUnmounted(() => {
           </div>
           <div class="flex-1">
             <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-3 md:mb-4">Установка системы</h2>
-            <p class="text-sm md:text-base text-gray-600 mb-4 md:mb-6">Выполняется установка и настройка выбранных компонентов системы.</p>
+            <p class="text-sm md:text-base text-gray-600 mb-4 md:mb-6">Выполняется установка и настройка выбранных компонентов системы управления обеденными перерывами.</p>
 
             <div class="mb-6 md:mb-8">
               <div class="flex items-center justify-between mb-2">
@@ -575,11 +627,11 @@ onUnmounted(() => {
                 </div>
                 <div class="ml-2 md:ml-3">
                   <p class="text-xs md:text-sm font-medium text-gray-900">Фоновая встройка</p>
-                  <p class="text-xs text-gray-500">Автоматически определяет время старта и завершения рабочего дня и оповещает об этом сотрудника</p>
+                  <p class="text-xs text-gray-500">Автоматически определяет время начала и завершения обеденного перерыва и оповещает об этом сотрудника</p>
                 </div>
               </div>
 
-              <!-- Встройка для управления рабочим днем из уведомлений -->
+              <!-- Встройка для управления обедом из уведомлений -->
               <div class="flex items-center">
                 <div class="w-6 h-6 md:w-8 md:h-8 flex-shrink-0">
                   <div v-if="placementStatus.restAppUri === 'loading'">
@@ -596,12 +648,12 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <div class="ml-2 md:ml-3">
-                  <p class="text-xs md:text-sm font-medium text-gray-900">Встройка для управления рабочим днем из уведомлений</p>
-                  <p class="text-xs text-gray-500">Позволяет сотруднику управлять статусом рабочего дня через сообщения в чатах или push-уведомлениях</p>
+                  <p class="text-xs md:text-sm font-medium text-gray-900">Встройка для управления обедом из уведомлений</p>
+                  <p class="text-xs text-gray-500">Позволяет сотруднику управлять обеденным перерывом через сообщения в чатах или push-уведомлениях</p>
                 </div>
               </div>
 
-              <!-- Настройка параметров системы (расширенная) -->
+              <!-- Настройка параметров системы -->
               <div class="flex items-center">
                 <div class="w-6 h-6 md:w-8 md:h-8 flex-shrink-0">
                   <div v-if="settingsStatus === 'loading'">
@@ -619,13 +671,13 @@ onUnmounted(() => {
                 </div>
                 <div class="ml-2 md:ml-3">
                   <p class="text-xs md:text-sm font-medium text-gray-900">Настройка параметров системы</p>
-                  <p class="text-xs text-gray-500">Сохранение настроек</p>
+                  <p class="text-xs text-gray-500">Сохранение настроек времени обеда и способов уведомлений</p>
                 </div>
               </div>
             </div>
 
             <div class="flex justify-end gap-3 pt-6 border-t">
-              <B24Button v-if="!installationComplete" @click="prevStep" label="Назад"  size="lg" variant="outline" :disabled="isInstalling" :icon="ArrowLeftLIcon" />
+              <B24Button v-if="!installationComplete" @click="prevStep" label="Назад" size="lg" variant="outline" :disabled="isInstalling" :icon="ArrowLeftLIcon" />
               <B24Button v-if="installationComplete" @click="nextStep" label="Продолжить" size="lg" color="primary" :icon="ArrowRightLIcon" icon-position="right" />
             </div>
           </div>
@@ -646,20 +698,24 @@ onUnmounted(() => {
             <h2 class="text-xl md:text-2xl font-bold text-gray-900 mb-3 md:mb-4">Установка завершена!</h2>
 
             <div class="space-y-4 md:space-y-6">
-              <p class="text-base md:text-lg text-gray-700">Система начала и завершения рабочего дня сотрудников успешно установлена и настроена.</p>
+              <p class="text-base md:text-lg text-gray-700">Система управления обеденными перерывами успешно установлена и настроена.</p>
 
               <B24PageCard variant="tinted">
                 <h3 class="text-lg font-bold text-gray-900 mb-2">Что дальше?</h3>
-                <p class="text-sm text-gray-600 mb-4">Система готова к использованию. Вы можете начать мониторинг активности сотрудников прямо сейчас.</p>
+                <p class="text-sm text-gray-600 mb-4">Система готова к использованию. Вы можете начать управлять обеденными перерывами сотрудников прямо сейчас.</p>
 
                 <div class="space-y-2">
-                  <div v-if="selectedFeatures.workdayStart" class="flex items-start">
+                  <div v-if="selectedFeatures.lunchStart" class="flex items-start">
                     <CheckIcon class="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span class="text-sm text-gray-700">Помощь в старте рабочего дня (способ: {{ configSettings.workdayStart.method }})</span>
+                    <span class="text-sm text-gray-700">Помощь в начале обеда (способ: {{ configSettings.lunchStart.method }})</span>
                   </div>
-                  <div v-if="selectedFeatures.workdayEnd" class="flex items-start">
+                  <div v-if="selectedFeatures.lunchEnd" class="flex items-start">
                     <CheckIcon class="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span class="text-sm text-gray-700">Помощь в завершении рабочего дня (способ: {{ configSettings.workdayEnd.method }})</span>
+                    <span class="text-sm text-gray-700">Помощь в завершении обеда (способ: {{ configSettings.lunchEnd.method }})</span>
+                  </div>
+                  <div class="flex items-start">
+                    <CheckIcon class="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <span class="text-sm text-gray-700">Время обеда по умолчанию: {{ configSettings.defaultLunchTime.startTime }} - {{ configSettings.defaultLunchTime.endTime }}</span>
                   </div>
                   <div v-if="selectedFeatures.weekendActivity" class="flex items-start">
                     <CheckIcon class="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
@@ -672,7 +728,7 @@ onUnmounted(() => {
                 </div>
 
                 <div class="mt-4">
-                  <B24Link href="mailto:technogalera@yandex.ru?subject=Поддержка приложения Чистое время" target="_blank" is-action>
+                  <B24Link href="mailto:technogalera@yandex.ru?subject=Поддержка приложения Умный обед" target="_blank" is-action>
                     Техническая поддержка
                   </B24Link>
                 </div>
@@ -683,11 +739,11 @@ onUnmounted(() => {
                 <ul class="space-y-2">
                   <li class="flex items-start text-gray-700">
                     <ArrowRightLIcon class="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span class="text-sm">Перейдите в приложение для просмотра данных мониторинга</span>
+                    <span class="text-sm">Перейдите в приложение для просмотра статистики обеденных перерывов</span>
                   </li>
                   <li class="flex items-start text-gray-700">
                     <ArrowRightLIcon class="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span class="text-sm">Настройте дополнительные параметры в разделе "Настройки"</span>
+                    <span class="text-sm">Настройте дополнительные параметры в разделе "Настройки обеда"</span>
                   </li>
                   <li class="flex items-start text-gray-700">
                     <ArrowRightLIcon class="w-4 h-4 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />

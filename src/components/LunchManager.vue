@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
-import PowerIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+import CoffeeIcon from '@bitrix24/b24icons-vue/outline/CoffeeIcon'
+import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/BriefcaseIcon'
 
-type WorkdayMode = 'start' | 'end'
+type LunchMode = 'start' | 'end'
 type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
 
 interface WorkdayInfo {
@@ -28,7 +29,7 @@ interface BX24Error {
 }
 
 const props = withDefaults(defineProps<{
-  mode: WorkdayMode
+  mode: LunchMode
   alertaParameters?: Record<string, any>
   autoCloseDelay?: number
 }>(), {
@@ -52,38 +53,38 @@ const currentUser = ref<CurrentUser>({
   email: ''
 })
 
-const isStartMode = computed(() => props.mode === 'start')
+const isStartLunch = computed(() => props.mode === 'start')
 
 const title = computed(() => {
   if (isActionCompleted.value) {
-    return isStartMode.value ? 'Рабочий день начат' : 'Рабочий день завершен'
+    return isStartLunch.value ? 'Обеденный перерыв начат' : 'Возвращение с обеда'
   }
-  return isStartMode.value ? 'Рабочий день не начат' : 'Завершение рабочего дня'
+  return isStartLunch.value ? 'Обеденный перерыв' : 'Возвращение с обеда'
 })
 
 const subtitle = computed(() => {
-  if (isStartMode.value) {
-    return 'Начните рабочий день,\nчтобы фиксировать рабочее время'
+  if (isStartLunch.value) {
+    return 'Поставьте рабочий день на паузу,\nчтобы уйти на обед'
   }
-  return 'Завершите рабочий день,\nчтобы зафиксировать отработанное время'
+  return 'Возобновите рабочий день,\nчтобы продолжить работу'
 })
 
 const completionMessage = computed(() => {
-  return isStartMode.value
-      ? 'Рабочий день успешно начат'
-      : 'Рабочий день успешно завершен'
+  return isStartLunch.value
+      ? 'Обеденный перерыв начался'
+      : 'Рабочий день возобновлен'
 })
 
 const buttonText = computed(() => {
-  return isStartMode.value ? 'Начать рабочий день' : 'Завершить рабочий день'
+  return isStartLunch.value ? 'На обед!' : 'За работу!'
 })
 
 const processingText = computed(() => {
-  return isStartMode.value ? 'Начинаем...' : 'Завершаем...'
+  return isStartLunch.value ? 'Уходим на обед...' : 'Возвращаемся...'
 })
 
 const completedText = computed(() => {
-  return isStartMode.value ? 'Рабочий день начат' : 'Рабочий день завершен'
+  return isStartLunch.value ? 'На обеде' : 'За работой'
 })
 
 const buttonClass = computed(() => {
@@ -95,10 +96,10 @@ const buttonClass = computed(() => {
     'shadow-md hover:shadow-lg': isEnabled
   }
 
-  if (isStartMode.value) {
-    classes['bg-green-600 hover:bg-green-700 text-white hover:text-white'] = isEnabled
+  if (isStartLunch.value) {
+    classes['bg-blue-600 hover:bg-blue-700 text-white hover:text-white'] = isEnabled
   } else {
-    classes['bg-orange-600 hover:bg-orange-700 text-white hover:text-white'] = isEnabled
+    classes['bg-green-600 hover:bg-green-700 text-white hover:text-white'] = isEnabled
   }
 
   return classes
@@ -112,9 +113,9 @@ const statusClass = computed(() => {
 
 const getStatusText = (status: WorkdayStatus | string): string => {
   const statusMap: Record<string, string> = {
-    'OPENED': 'Открыт',
+    'OPENED': 'Работает',
     'CLOSED': 'Закрыт',
-    'PAUSED': 'Приостановлен',
+    'PAUSED': 'На обеде',
     'EXPIRED': 'Истек'
   }
   return statusMap[status] || status
@@ -138,7 +139,6 @@ const formatDateTime = (dateTimeStr?: string): string => {
 }
 
 const loadCurrentUser = async (): Promise<CurrentUser> => {
-  // Проверяем наличие BX24
   if (typeof window === 'undefined' || typeof (window as any).BX24 === 'undefined') {
     return {
       id: 0,
@@ -227,42 +227,19 @@ const getCurrentWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
   }
 }
 
-const startWorkday = async (): Promise<WorkdayInfo> => {
+const pauseWorkday = async (): Promise<WorkdayInfo> => {
   const BX24 = (window as any).BX24
 
   const status = await getCurrentWorkdayStatus()
 
-  if (!status || status.STATUS === 'CLOSED') {
-    const params: Record<string, any> = {}
-    if (currentUser.value.id && currentUser.value.id > 0) {
-      params.USER_ID = currentUser.value.id
+  if (!status || status.STATUS !== 'OPENED') {
+    if (status?.STATUS === 'PAUSED') {
+      throw new Error('Рабочий день уже на паузе')
     }
-
-    const result = await new Promise<WorkdayInfo>((resolve, reject) => {
-      BX24.callMethod('timeman.open', params, (result: any) => {
-        if (result.error()) {
-          reject(result.error())
-        } else {
-          resolve(result.data())
-        }
-      })
-    })
-    return result
-  } else if (status.STATUS === 'OPENED' || status.STATUS === 'PAUSED') {
-    statusMessage.value = 'Рабочий день уже начат'
-    return status
-  } else {
-    return status
-  }
-}
-
-const endWorkday = async (): Promise<WorkdayInfo> => {
-  const BX24 = (window as any).BX24
-
-  const status = await getCurrentWorkdayStatus()
-
-  if (!status || status.STATUS === 'CLOSED') {
-    throw new Error('Рабочий день уже завершен')
+    if (status?.STATUS === 'CLOSED') {
+      throw new Error('Рабочий день уже завершен. Сначала начните рабочий день')
+    }
+    throw new Error('Нельзя поставить на паузу - рабочий день не активен')
   }
 
   const params: Record<string, any> = {}
@@ -271,12 +248,8 @@ const endWorkday = async (): Promise<WorkdayInfo> => {
     params.USER_ID = currentUser.value.id
   }
 
-  if (status && status.STATUS === 'EXPIRED') {
-    params.REPORT = 'Завершение истекшего рабочего дня'
-  }
-
   const result = await new Promise<WorkdayInfo>((resolve, reject) => {
-    BX24.callMethod('timeman.close', params, (result: any) => {
+    BX24.callMethod('timeman.pause', params, (result: any) => {
       if (result.error()) {
         reject(result.error())
       } else {
@@ -288,43 +261,38 @@ const endWorkday = async (): Promise<WorkdayInfo> => {
   return result
 }
 
-const resumeWorkday = async (): Promise<boolean> => {
+const resumeWorkday = async (): Promise<WorkdayInfo> => {
   const BX24 = (window as any).BX24
 
-  try {
-    const params: Record<string, any> = {}
-    if (currentUser.value.id && currentUser.value.id > 0) {
-      params.USER_ID = currentUser.value.id
+  const status = await getCurrentWorkdayStatus()
+
+  if (!status || status.STATUS !== 'PAUSED') {
+    if (status?.STATUS === 'OPENED') {
+      throw new Error('Рабочий день не на паузе')
     }
-
-    const result = await new Promise<WorkdayInfo>((resolve, reject) => {
-      BX24.callMethod('timeman.resume', params, (result: any) => {
-        if (result.error()) {
-          reject(result.error())
-        } else {
-          resolve(result.data())
-        }
-      })
-    })
-
-    workdayInfo.value = result
-    isActionCompleted.value = true
-    statusMessage.value = 'Рабочий день возобновлен'
-
-    toast.add({
-      description: 'Рабочий день успешно возобновлен',
-      variant: 'success'
-    })
-
-    setTimeout(() => {
-      closeApplication()
-    }, props.autoCloseDelay)
-
-    return true
-  } catch (resumeError) {
-    console.error('Ошибка при возобновлении:', resumeError)
-    throw new Error('Не удалось возобновить рабочий день')
+    if (status?.STATUS === 'CLOSED') {
+      throw new Error('Рабочий день уже завершен. Сначала начните рабочий день')
+    }
+    throw new Error('Нельзя возобновить - рабочий день не на паузе')
   }
+
+  const params: Record<string, any> = {}
+
+  if (currentUser.value.id && currentUser.value.id > 0) {
+    params.USER_ID = currentUser.value.id
+  }
+
+  const result = await new Promise<WorkdayInfo>((resolve, reject) => {
+    BX24.callMethod('timeman.resume', params, (result: any) => {
+      if (result.error()) {
+        reject(result.error())
+      } else {
+        resolve(result.data())
+      }
+    })
+  })
+
+  return result
 }
 
 const closeApplication = (): void => {
@@ -355,20 +323,20 @@ const executeAction = async (): Promise<void> => {
 
   try {
     isProcessing.value = true
-    statusMessage.value = isStartMode.value ? 'Начинаем рабочий день...' : 'Завершаем рабочий день...'
+    statusMessage.value = isStartLunch.value ? 'Ставим рабочий день на паузу...' : 'Возобновляем рабочий день...'
 
     let result: WorkdayInfo
-    if (isStartMode.value) {
-      result = await startWorkday()
+    if (isStartLunch.value) {
+      result = await pauseWorkday()
     } else {
-      result = await endWorkday()
+      result = await resumeWorkday()
     }
 
     workdayInfo.value = result
     isActionCompleted.value = true
-    statusMessage.value = isStartMode.value
-        ? 'Рабочий день успешно начат'
-        : 'Рабочий день успешно завершен'
+    statusMessage.value = isStartLunch.value
+        ? 'Обеденный перерыв начался'
+        : 'Рабочий день возобновлен'
 
     toast.add({
       description: statusMessage.value,
@@ -380,27 +348,17 @@ const executeAction = async (): Promise<void> => {
     }, props.autoCloseDelay)
 
   } catch (err) {
-    console.error(`Ошибка при ${isStartMode.value ? 'начале' : 'завершении'} рабочего дня:`, err)
+    console.error(`Ошибка при ${isStartLunch.value ? 'начале' : 'завершении'} обеда:`, err)
 
     const bxError = err as BX24Error
     let errorMessage = bxError.error_description || bxError.message || 'Неизвестная ошибка'
 
-    if (bxError.error === 'WRONG_DATETIME') {
-      errorMessage = isStartMode.value
-          ? 'Дата открытия рабочего дня должна совпадать с текущей календарной датой'
-          : 'Дата завершения рабочего дня должна совпадать с датой начала'
-    } else if (bxError.error === 'WRONG_DATETIME_FORMAT') {
-      errorMessage = 'Неверный формат даты. Используйте формат ATOM (ISO-8601)'
-    } else if (bxError.error === 'TIME' && isStartMode.value) {
-      errorMessage = 'Нельзя установить время для приостановленного рабочего дня. Рабочий день возобновлен автоматически.'
-      await resumeWorkday()
-      return
-    } else if (bxError.error === 'ACCESS_DENIED' || bxError.error === 'insufficient_scope') {
+    if (bxError.error === 'ACCESS_DENIED' || bxError.error === 'insufficient_scope') {
       errorMessage = 'Недостаточно прав для выполнения операции'
     } else if (bxError.error === 'USER_NOT_FOUND' || bxError.message?.includes('User not found')) {
       errorMessage = 'Пользователь не найден'
-    } else if (bxError.error === 'REPORT_REQUIRED') {
-      errorMessage = 'Необходимо указать причину завершения рабочего дня'
+    } else if (bxError.error === 'METHOD_NOT_FOUND') {
+      errorMessage = 'Метод timeman.pause не поддерживается версией Битрикс24'
     }
 
     error.value = errorMessage
@@ -424,14 +382,24 @@ const initializeComponent = async (): Promise<void> => {
     if (status) {
       workdayInfo.value = status
 
-      if (isStartMode.value && status.STATUS === 'OPENED') {
+      if (isStartLunch.value && status.STATUS === 'PAUSED') {
         isActionCompleted.value = true
-        statusMessage.value = 'Рабочий день уже начат'
+        statusMessage.value = 'Уже на обеде'
       }
 
-      if (!isStartMode.value && status.STATUS === 'CLOSED') {
+      if (!isStartLunch.value && status.STATUS === 'OPENED') {
         isActionCompleted.value = true
-        statusMessage.value = 'Рабочий день уже завершен'
+        statusMessage.value = 'Уже за работой'
+      }
+
+      if (!isStartLunch.value && status.STATUS === 'CLOSED') {
+        error.value = 'Рабочий день не начат. Сначала начните рабочий день'
+        statusMessage.value = error.value
+      }
+
+      if (isStartLunch.value && status.STATUS === 'CLOSED') {
+        error.value = 'Рабочий день не начат. Сначала начните рабочий день'
+        statusMessage.value = error.value
       }
     }
   } catch (error) {
@@ -439,7 +407,6 @@ const initializeComponent = async (): Promise<void> => {
   }
 }
 
-// Очистка всех кук
 const clearCookies = () => {
   if (typeof document === 'undefined') return
 
@@ -458,7 +425,6 @@ const clearCookies = () => {
 onMounted(() => {
   clearCookies();
 
-  // Проверяем наличие BX24 с задержкой, так как он может загружаться асинхронно
   const checkBX24 = () => {
     if (typeof window !== 'undefined' && (window as any).BX24) {
       const BX24 = (window as any).BX24;
@@ -472,7 +438,6 @@ onMounted(() => {
         initializeComponent();
       }
     } else {
-      // Если BX24 еще не загружен, ждем и пробуем снова
       setTimeout(checkBX24, 100);
     }
   };
@@ -480,15 +445,19 @@ onMounted(() => {
   checkBX24();
 });
 </script>
+
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center bg-white p-4">
-    <!-- Основной контент -->
     <div class="text-center w-full">
       <!-- Иконка -->
       <div class="mb-8 flex justify-center">
         <div class="w-24 h-24 rounded-full flex items-center justify-center"
-             :class="mode === 'start' ? 'bg-blue-50' : 'bg-orange-50'">
-          <PowerIcon class="w-12 h-12" :class="mode === 'start' ? 'text-blue-600' : 'text-orange-600'" />
+             :class="isStartLunch ? 'bg-blue-50' : 'bg-green-50'">
+          <component
+              :is="isStartLunch ? CoffeeIcon : BriefcaseIcon"
+              class="w-12 h-12"
+              :class="isStartLunch ? 'text-blue-600' : 'text-green-600'"
+          />
         </div>
       </div>
 
@@ -498,15 +467,20 @@ onMounted(() => {
       </h1>
 
       <!-- Подзаголовок -->
-      <p class="text-gray-600 mb-8 whitespace-pre-line" v-if="!isActionCompleted">
+      <p class="text-gray-600 mb-8 whitespace-pre-line" v-if="!isActionCompleted && !error">
         {{ subtitle }}
       </p>
-      <p class="text-gray-600 mb-8" v-else>
+      <p class="text-gray-600 mb-8" v-else-if="isActionCompleted">
         {{ completionMessage }}
       </p>
 
+      <!-- Текущий статус -->
+      <div v-if="workdayInfo && !isActionCompleted && !error" class="mb-6 text-sm text-gray-500">
+        Текущий статус: {{ getStatusText(workdayInfo.STATUS) }}
+      </div>
+
       <!-- Кнопка действия -->
-      <div class="mb-4" v-if="!isActionCompleted">
+      <div class="mb-4" v-if="!isActionCompleted && !error">
         <B24Button
             @click="executeAction"
             :disabled="isProcessing || isActionCompleted || !isBX24Ready"
@@ -538,7 +512,7 @@ onMounted(() => {
       </div>
 
       <!-- Статус -->
-      <div v-if="statusMessage" class="text-sm mb-6" :class="statusClass">
+      <div v-if="statusMessage && !error" class="text-sm mb-6" :class="statusClass">
         {{ statusMessage }}
       </div>
 
@@ -554,7 +528,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Уведомления -->
     <B24NotificationContainer position="top-right" />
   </div>
 </template>

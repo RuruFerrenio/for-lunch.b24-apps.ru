@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
-import PowerIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+import { Time } from '@internationalized/date'
+import CoffeeIcon from '@bitrix24/b24icons-vue/outline/CoffeeIcon'
+import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/BriefcaseIcon'
 import CalendarIcon from '@bitrix24/b24icons-vue/outline/CalendarIcon'
 import ClockIcon from '@bitrix24/b24icons-vue/outline/ClockIcon'
 import CircleCheckIcon from '@bitrix24/b24icons-vue/outline/CircleCheckIcon'
 import InfoCircleIcon from '@bitrix24/b24icons-vue/main/InfoCircleIcon'
 import NoteCircleIcon from '@bitrix24/b24icons-vue/main/NoteCircleIcon'
 import RefreshIcon from '@bitrix24/b24icons-vue/outline/RefreshIcon'
+import RestaurantIcon from '@bitrix24/b24icons-vue/outline/RestaurantIcon'
 
-type WorkdayStatus = 'OPENED' | 'CLOSED' | 'EXPIRED'
+type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
 
 interface WorkdayInfo {
   STATUS: WorkdayStatus
   TIME_START?: string
   TIME_FINISH?: string
+  TIME_PAUSED?: string
   DURATION?: string
   TIME_LEAKS?: string
   [key: string]: any
@@ -32,6 +36,11 @@ interface UserProfile {
   IS_ONLINE: 'Y' | 'N'
 }
 
+interface LunchSettings {
+  startTime: Time | null
+  endTime: Time | null
+}
+
 const toast = useToast()
 
 const isBitrixLoaded = ref(false)
@@ -42,8 +51,16 @@ const currentUser = ref<UserProfile | null>(null)
 const error = ref<string | null>(null)
 const isRefreshing = ref(false)
 
-// Флаг доступности метода timeman.status
-const isTimemanAvailable = ref<boolean | null>(null) // null - не проверено, false - недоступен, true - доступен
+// Настройки обеда
+const lunchSettings = ref<LunchSettings>({
+  startTime: null,
+  endTime: null
+})
+
+const isSettingsSaved = ref(false)
+
+// Флаг доступности методов timeman
+const isTimemanAvailable = ref<boolean | null>(null)
 
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 let isPageVisible = true
@@ -58,6 +75,7 @@ const statusText = computed(() => {
   const statusMap: Record<WorkdayStatus, string> = {
     'OPENED': 'Рабочий день активен',
     'CLOSED': 'Рабочий день не начат',
+    'PAUSED': 'Обеденный перерыв',
     'EXPIRED': 'Рабочий день истек'
   }
   return statusMap[workdayInfo.value.STATUS] || workdayInfo.value.STATUS
@@ -69,6 +87,7 @@ const statusIcon = computed(() => {
   const iconMap: Record<WorkdayStatus, any> = {
     'OPENED': CircleCheckIcon,
     'CLOSED': InfoCircleIcon,
+    'PAUSED': CoffeeIcon,
     'EXPIRED': NoteCircleIcon
   }
   return iconMap[workdayInfo.value.STATUS] || InfoCircleIcon
@@ -80,6 +99,7 @@ const statusColor = computed(() => {
   const colorMap: Record<WorkdayStatus, string> = {
     'OPENED': 'text-green-600',
     'CLOSED': 'text-gray-500',
+    'PAUSED': 'text-blue-600',
     'EXPIRED': 'text-red-600'
   }
   return colorMap[workdayInfo.value.STATUS] || 'text-gray-500'
@@ -91,6 +111,7 @@ const statusBgColor = computed(() => {
   const colorMap: Record<WorkdayStatus, string> = {
     'OPENED': 'bg-green-50 border-green-200',
     'CLOSED': 'bg-gray-50 border-gray-200',
+    'PAUSED': 'bg-blue-50 border-blue-200',
     'EXPIRED': 'bg-red-50 border-red-200'
   }
   return colorMap[workdayInfo.value.STATUS] || 'bg-gray-100 border-gray-200'
@@ -102,113 +123,134 @@ const statusChipColor = computed(() => {
   const colorMap: Record<WorkdayStatus, string> = {
     'OPENED': 'air-primary-success',
     'CLOSED': 'air-secondary-accent',
+    'PAUSED': 'air-primary',
     'EXPIRED': 'air-primary-alert'
   }
   return colorMap[workdayInfo.value.STATUS] || 'air-secondary-accent'
 })
 
-const canStartWorkday = computed(() => {
-  return workdayInfo.value && workdayInfo.value.STATUS === 'CLOSED'
-})
-
-const canEndWorkday = computed(() => {
+const canPauseWorkday = computed(() => {
   return workdayInfo.value && workdayInfo.value.STATUS === 'OPENED'
 })
 
-const buttonText = computed(() => {
-  if (canStartWorkday.value) return 'Начать рабочий день'
-  if (canEndWorkday.value) return 'Завершить рабочий день'
-  return 'Рабочий день'
+const canResumeWorkday = computed(() => {
+  return workdayInfo.value && workdayInfo.value.STATUS === 'PAUSED'
 })
 
-// Показывать ли основной контент (если метод доступен)
+const buttonText = computed(() => {
+  if (canPauseWorkday.value) return 'На обед!'
+  if (canResumeWorkday.value) return 'За работу!'
+  return 'Обед'
+})
+
+const buttonIcon = computed(() => {
+  if (canPauseWorkday.value) return CoffeeIcon
+  if (canResumeWorkday.value) return BriefcaseIcon
+  return RestaurantIcon
+})
+
+const buttonColor = computed(() => {
+  if (canPauseWorkday.value) return 'air-primary'
+  if (canResumeWorkday.value) return 'air-primary-success'
+  return 'air-secondary-accent'
+})
+
+// Показывать ли основной контент
 const showMainContent = computed(() => {
   return isTimemanAvailable.value === true && !error.value
 })
 
-// Показывать ли сообщение о недоступности (если метод не доступен)
 const showUnavailableMessage = computed(() => {
   return isTimemanAvailable.value === false
 })
 
-// Вспомогательные функции
-const formatTime = (dateTimeStr?: string): string => {
-  if (!dateTimeStr) return '—'
-  try {
-    const date = new Date(dateTimeStr)
-    return date.toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return dateTimeStr
-  }
+// Форматирование времени обеда для отображения
+const formattedLunchStart = computed(() => {
+  if (!lunchSettings.value.startTime) return '—'
+  return lunchSettings.value.startTime.toString().slice(0, 5)
+})
+
+const formattedLunchEnd = computed(() => {
+  if (!lunchSettings.value.endTime) return '—'
+  return lunchSettings.value.endTime.toString().slice(0, 5)
+})
+
+const hasLunchSettings = computed(() => {
+  return lunchSettings.value.startTime !== null && lunchSettings.value.endTime !== null
+})
+
+// ==========================================================================
+// РАБОТА С КУКИ
+// ==========================================================================
+
+const setCookie = (name: string, value: string, days: number = 365) => {
+  if (typeof document === 'undefined') return
+
+  const expires = new Date()
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
+  document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=None; Secure`
 }
 
-const formatDate = (dateTimeStr?: string): string => {
-  if (!dateTimeStr) return '—'
-  try {
-    const date = new Date(dateTimeStr)
-    return date.toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
-  } catch {
-    return dateTimeStr
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null
+
+  const nameEQ = `${name}=`
+  const ca = document.cookie.split(';')
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i]
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length)
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length)
   }
+  return null
 }
 
-const formatDuration = (durationStr?: string): string => {
-  if (!durationStr) return '—'
-  try {
-    const seconds = parseInt(durationStr)
-    if (!isNaN(seconds)) {
-      const hours = Math.floor(seconds / 3600)
-      const minutes = Math.floor((seconds % 3600) / 60)
-      if (hours > 0) {
-        return `${hours} ч ${minutes} мин`
-      }
-      return `${minutes} мин`
+const saveLunchSettingsToCookies = () => {
+  if (lunchSettings.value.startTime) {
+    setCookie('lunch_start_time', lunchSettings.value.startTime.toString())
+  } else {
+    setCookie('lunch_start_time', '', 0) // удаляем куку
+  }
+
+  if (lunchSettings.value.endTime) {
+    setCookie('lunch_end_time', lunchSettings.value.endTime.toString())
+  } else {
+    setCookie('lunch_end_time', '', 0)
+  }
+
+  isSettingsSaved.value = true
+
+  setTimeout(() => {
+    isSettingsSaved.value = false
+  }, 2000)
+}
+
+const loadLunchSettingsFromCookies = () => {
+  const startTimeStr = getCookie('lunch_start_time')
+  const endTimeStr = getCookie('lunch_end_time')
+
+  if (startTimeStr) {
+    try {
+      const [hours, minutes] = startTimeStr.split(':')
+      lunchSettings.value.startTime = new Time(parseInt(hours), parseInt(minutes), 0)
+    } catch (e) {
+      console.error('Ошибка парсинга времени начала обеда', e)
     }
-  } catch {
-    return durationStr
   }
-  return durationStr
-}
 
-const getUserInitials = (user: UserProfile | null): string => {
-  if (!user) return '?'
-  const firstName = user.NAME || ''
-  const lastName = user.LAST_NAME || ''
-  if (firstName && lastName) {
-    return (firstName[0] + lastName[0]).toUpperCase()
+  if (endTimeStr) {
+    try {
+      const [hours, minutes] = endTimeStr.split(':')
+      lunchSettings.value.endTime = new Time(parseInt(hours), parseInt(minutes), 0)
+    } catch (e) {
+      console.error('Ошибка парсинга времени завершения обеда', e)
+    }
   }
-  if (firstName) return firstName.substring(0, 2).toUpperCase()
-  if (user.EMAIL) return user.EMAIL.substring(0, 2).toUpperCase()
-  return 'С'
-}
-
-const getUserPhoto = (user: UserProfile | null): string | null => {
-  return user?.PERSONAL_PHOTO || null
-}
-
-const getFullName = (userData: any): string => {
-  const parts = []
-  if (userData.NAME) parts.push(userData.NAME)
-  if (userData.LAST_NAME) parts.push(userData.LAST_NAME)
-  if (userData.SECOND_NAME) parts.push(userData.SECOND_NAME)
-  return parts.join(' ') || `Пользователь ${userData.ID}`
 }
 
 // ==========================================================================
-// ПРОВЕРКА ДОСТУПНОСТИ МЕТОДА timeman.status
+// ПРОВЕРКА ДОСТУПНОСТИ МЕТОДОВ
 // ==========================================================================
 
-/**
- * Проверяет доступность метода timeman.status через API Битрикс24
- * @returns Promise<boolean> - true если метод доступен, false если нет
- */
 const checkTimemanAvailability = async (): Promise<boolean> => {
   if (typeof BX24 === 'undefined') {
     return false
@@ -224,19 +266,16 @@ const checkTimemanAvailability = async (): Promise<boolean> => {
       }
 
       const methodData = result.data()
-      // Метод доступен только если он существует И доступен для вызова
       const isAvailable = methodData.isExisting && methodData.isAvailable
-
-      if (isAvailable) {
-      } else {
-      }
-
       resolve(isAvailable)
     })
   })
 }
 
-// API вызовы
+// ==========================================================================
+// API ВЫЗОВЫ
+// ==========================================================================
+
 const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') {
     return null
@@ -252,6 +291,14 @@ const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
         }
       })
     })
+
+    const getFullName = (userData: any): string => {
+      const parts = []
+      if (userData.NAME) parts.push(userData.NAME)
+      if (userData.LAST_NAME) parts.push(userData.LAST_NAME)
+      if (userData.SECOND_NAME) parts.push(userData.SECOND_NAME)
+      return parts.join(' ') || `Пользователь ${userData.ID}`
+    }
 
     const userProfile: UserProfile = {
       ID: parseInt(result.ID),
@@ -273,7 +320,6 @@ const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
 }
 
 const getWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
-  // Если метод недоступен, сразу возвращаем null
   if (!isTimemanAvailable.value) {
     return null
   }
@@ -299,14 +345,14 @@ const getWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
   }
 }
 
-const startWorkdayAPI = async (): Promise<void> => {
+const pauseWorkdayAPI = async (): Promise<void> => {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
   if (!isTimemanAvailable.value) {
-    throw new Error('Метод timeman.status недоступен')
+    throw new Error('Методы timeman недоступны')
   }
 
   return new Promise((resolve, reject) => {
-    BX24.callMethod('timeman.open', {}, (result: any) => {
+    BX24.callMethod('timeman.pause', {}, (result: any) => {
       if (result.error()) {
         reject(result.error())
       } else {
@@ -316,14 +362,14 @@ const startWorkdayAPI = async (): Promise<void> => {
   })
 }
 
-const endWorkdayAPI = async (): Promise<void> => {
+const resumeWorkdayAPI = async (): Promise<void> => {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
   if (!isTimemanAvailable.value) {
-    throw new Error('Метод timeman.status недоступен')
+    throw new Error('Методы timeman недоступны')
   }
 
   return new Promise((resolve, reject) => {
-    BX24.callMethod('timeman.close', {}, (result: any) => {
+    BX24.callMethod('timeman.resume', {}, (result: any) => {
       if (result.error()) {
         reject(result.error())
       } else {
@@ -333,10 +379,12 @@ const endWorkdayAPI = async (): Promise<void> => {
   })
 }
 
-// Основные действия
+// ==========================================================================
+// ОСНОВНЫЕ ДЕЙСТВИЯ
+// ==========================================================================
+
 const refreshData = async () => {
   if (isRefreshing.value) return
-  // Если метод недоступен, не пытаемся обновлять данные
   if (isTimemanAvailable.value === false) return
 
   isRefreshing.value = true
@@ -359,7 +407,7 @@ const refreshData = async () => {
   }
 }
 
-const handleStartWorkday = async () => {
+const handlePauseWorkday = async () => {
   if (isProcessing.value) return
   if (isTimemanAvailable.value === false) {
     toast.add({
@@ -373,14 +421,14 @@ const handleStartWorkday = async () => {
   error.value = null
 
   try {
-    await startWorkdayAPI()
+    await pauseWorkdayAPI()
     toast.add({
-      description: 'Рабочий день успешно начат',
+      description: 'Обеденный перерыв начался. Приятного аппетита! 🍽️',
       variant: 'success'
     })
     await refreshData()
   } catch (err: any) {
-    const errorMessage = err.error_description || err.message || 'Ошибка при начале рабочего дня'
+    const errorMessage = err.error_description || err.message || 'Ошибка при начале обеда'
     error.value = errorMessage
     toast.add({
       description: errorMessage,
@@ -391,7 +439,7 @@ const handleStartWorkday = async () => {
   }
 }
 
-const handleEndWorkday = async () => {
+const handleResumeWorkday = async () => {
   if (isProcessing.value) return
   if (isTimemanAvailable.value === false) {
     toast.add({
@@ -405,14 +453,14 @@ const handleEndWorkday = async () => {
   error.value = null
 
   try {
-    await endWorkdayAPI()
+    await resumeWorkdayAPI()
     toast.add({
-      description: 'Рабочий день успешно завершен',
+      description: 'Обеденный перерыв завершен. Добро пожаловать обратно! 💪',
       variant: 'success'
     })
     await refreshData()
   } catch (err: any) {
-    const errorMessage = err.error_description || err.message || 'Ошибка при завершении рабочего дня'
+    const errorMessage = err.error_description || err.message || 'Ошибка при завершении обеда'
     error.value = errorMessage
     toast.add({
       description: errorMessage,
@@ -424,14 +472,25 @@ const handleEndWorkday = async () => {
 }
 
 const handleMainAction = () => {
-  if (canStartWorkday.value) {
-    handleStartWorkday()
-  } else if (canEndWorkday.value) {
-    handleEndWorkday()
+  if (canPauseWorkday.value) {
+    handlePauseWorkday()
+  } else if (canResumeWorkday.value) {
+    handleResumeWorkday()
   }
 }
 
-// Обработчики видимости страницы
+const saveLunchSettings = () => {
+  saveLunchSettingsToCookies()
+  toast.add({
+    description: 'Настройки времени обеда сохранены',
+    variant: 'success'
+  })
+}
+
+// ==========================================================================
+// ЖИЗНЕННЫЙ ЦИКЛ
+// ==========================================================================
+
 const handleVisibilityChange = () => {
   const wasVisible = isPageVisible
   isPageVisible = !document.hidden
@@ -447,18 +506,32 @@ const startAutoRefresh = () => {
     if (isPageVisible && isTimemanAvailable.value === true) {
       refreshData()
     }
-  }, 30000) // Обновляем каждые 30 секунд
+  }, 30000)
 }
 
-// Жизненный цикл
+const getUserInitials = (user: UserProfile | null): string => {
+  if (!user) return '?'
+  const firstName = user.NAME || ''
+  const lastName = user.LAST_NAME || ''
+  if (firstName && lastName) {
+    return (firstName[0] + lastName[0]).toUpperCase()
+  }
+  if (firstName) return firstName.substring(0, 2).toUpperCase()
+  if (user.EMAIL) return user.EMAIL.substring(0, 2).toUpperCase()
+  return 'С'
+}
+
+const getUserPhoto = (user: UserProfile | null): string | null => {
+  return user?.PERSONAL_PHOTO || null
+}
+
 onMounted(() => {
+  // Загружаем настройки обеда из куки
+  loadLunchSettingsFromCookies()
+
   if (typeof BX24 !== 'undefined' && BX24.init) {
     BX24.init(async () => {
       isBitrixLoaded.value = true
-
-      // ======================================================================
-      // ГЛАВНАЯ ПРОВЕРКА ДОСТУПНОСТИ МЕТОДА timeman.status
-      // ======================================================================
       isTimemanAvailable.value = await checkTimemanAvailability()
 
       if (!isTimemanAvailable.value) {
@@ -466,17 +539,12 @@ onMounted(() => {
         return
       }
 
-      // ======================================================================
-      // ТОЛЬКО ЕСЛИ МЕТОД ДОСТУПЕН - выполняем всю остальную логику
-      // ======================================================================
-
       await refreshData()
       startAutoRefresh()
     })
   } else if (typeof BX24 !== 'undefined') {
     isBitrixLoaded.value = true
 
-    // Асинхронная проверка доступности
     checkTimemanAvailability().then((isAvailable) => {
       isTimemanAvailable.value = isAvailable
 
@@ -505,7 +573,7 @@ onUnmounted(() => {
 
 <template>
   <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-    <!-- B24User вместо иконки приложения -->
+    <!-- Шапка -->
     <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
       <div class="flex items-center justify-between">
         <B24User
@@ -525,12 +593,11 @@ onUnmounted(() => {
         />
         <div v-else-if="!showUnavailableMessage" class="flex items-center gap-3">
           <div class="p-2 bg-blue-100 rounded-full">
-            <PowerIcon class="w-5 h-5 text-blue-600" />
+            <RestaurantIcon class="w-5 h-5 text-blue-600" />
           </div>
           <span class="font-medium text-gray-700">Загрузка...</span>
         </div>
 
-        <!-- Кнопка обновления (только если метод доступен) -->
         <B24Button
             v-if="showMainContent"
             @click="refreshData"
@@ -551,7 +618,7 @@ onUnmounted(() => {
 
     <!-- Содержимое -->
     <div class="p-6">
-      <!-- Сообщение о недоступности метода (требуется Профессиональный тариф) -->
+      <!-- Сообщение о недоступности -->
       <div v-if="showUnavailableMessage" class="text-center py-8">
         <div class="mb-4">
           <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -573,18 +640,18 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <!-- Состояние загрузки (только если метод доступен) -->
+      <!-- Загрузка -->
       <div v-else-if="isLoading && showMainContent" class="flex items-center justify-center py-8">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
 
-      <!-- Ошибка (только если метод доступен) -->
+      <!-- Ошибка -->
       <div v-else-if="error && showMainContent" class="text-center py-6">
         <div class="text-red-600 mb-3 text-sm">{{ error }}</div>
         <B24Button size="sm" @click="refreshData">Попробовать снова</B24Button>
       </div>
 
-      <!-- Данные о рабочем дне (только если метод доступен) -->
+      <!-- Данные -->
       <div v-else-if="showMainContent">
         <!-- Статус -->
         <div class="mb-6">
@@ -604,18 +671,67 @@ onUnmounted(() => {
                 variant="soft"
             >
               {{ workdayInfo?.STATUS === 'OPENED' ? 'В работе' :
-                workdayInfo?.STATUS === 'EXPIRED' ? 'Просрочен' : 'Ожидание' }}
+                workdayInfo?.STATUS === 'PAUSED' ? 'На обеде' :
+                    workdayInfo?.STATUS === 'EXPIRED' ? 'Просрочен' : 'Ожидание' }}
             </B24Badge>
           </div>
         </div>
 
-        <!-- Кнопки действий -->
+        <!-- Настройки времени обеда -->
+        <div class="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+            <ClockIcon class="w-4 h-4" />
+            Настройки времени обеда
+          </h3>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Время начала обеда</label>
+              <B24InputTime
+                  v-model="lunchSettings.startTime"
+                  :hour-cycle="24"
+                  size="md"
+                  color="air-primary"
+                  placeholder="Выберите время"
+              />
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Время завершения обеда</label>
+              <B24InputTime
+                  v-model="lunchSettings.endTime"
+                  :hour-cycle="24"
+                  size="md"
+                  color="air-primary"
+                  placeholder="Выберите время"
+              />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div v-if="hasLunchSettings" class="text-xs text-gray-400">
+              ⏰ Обед с {{ formattedLunchStart }} до {{ formattedLunchEnd }}
+            </div>
+            <div v-else class="text-xs text-gray-400">
+              ⚠️ Время обеда не настроено
+            </div>
+            <B24Button
+                @click="saveLunchSettings"
+                size="sm"
+                variant="outline"
+                color="air-primary"
+            >
+              {{ isSettingsSaved ? '✓ Сохранено' : 'Сохранить' }}
+            </B24Button>
+          </div>
+        </div>
+
+        <!-- Кнопка действия -->
         <div class="flex flex-col gap-2">
           <B24Button
-              v-if="canStartWorkday || canEndWorkday"
+              v-if="canPauseWorkday || canResumeWorkday"
               @click="handleMainAction"
               :disabled="isProcessing"
-              :color="canStartWorkday ? 'air-primary-success' : 'air-primary-alert'"
+              :color="buttonColor"
               size="lg"
               class="w-full"
           >
@@ -623,10 +739,15 @@ onUnmounted(() => {
               <svg v-if="isProcessing" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
               </svg>
-              <PowerIcon v-else class="w-4 h-4" />
+              <component :is="buttonIcon" v-else class="w-4 h-4" />
             </template>
             {{ isProcessing ? 'Обработка...' : buttonText }}
           </B24Button>
+
+          <div v-else class="text-center text-sm text-gray-400 py-2">
+            {{ workdayInfo?.STATUS === 'CLOSED' ? 'Сначала начните рабочий день' : '' }}
+            {{ workdayInfo?.STATUS === 'EXPIRED' ? 'Рабочий день истек, обратитесь к руководителю' : '' }}
+          </div>
         </div>
       </div>
     </div>

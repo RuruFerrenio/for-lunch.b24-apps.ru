@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import WorkdayInfo from '../components/WorkdayInfo.vue'
+import LunchInfo from '../components/LunchInfo.vue'
 </script>
 
 <template>
   <!-- Компонент информации о рабочем дне -->
   <div class="mx-auto mb-8">
-    <WorkdayInfo />
+    <LunchInfo />
   </div>
 </template>
