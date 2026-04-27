@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, reactive } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
 import { Time } from '@internationalized/date'
 import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
-import CalendarIcon from '@bitrix24/b24icons-vue/outline/CalendarIcon'
 import ClockIcon from '@bitrix24/b24icons-vue/outline/ClockIcon'
 import CircleCheckIcon from '@bitrix24/b24icons-vue/outline/CircleCheckIcon'
 import InfoCircleIcon from '@bitrix24/b24icons-vue/main/InfoCircleIcon'
 import NoteCircleIcon from '@bitrix24/b24icons-vue/main/NoteCircleIcon'
 import RefreshIcon from '@bitrix24/b24icons-vue/outline/RefreshIcon'
 import RestaurantIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+import * as v from 'valibot'
+import type { FormSubmitEvent } from '@bitrix24/b24ui-nuxt'
 
 type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
 
@@ -36,9 +37,9 @@ interface UserProfile {
   IS_ONLINE: 'Y' | 'N'
 }
 
-interface LunchSettings {
-  startTime: Time | null
-  endTime: Time | null
+interface LunchFormData {
+  startTime: string | null
+  endTime: string | null
 }
 
 const toast = useToast()
@@ -51,13 +52,27 @@ const currentUser = ref<UserProfile | null>(null)
 const error = ref<string | null>(null)
 const isRefreshing = ref(false)
 
-// Настройки обеда
-const lunchSettings = ref<LunchSettings>({
+// Настройки обеда для формы
+const lunchForm = reactive<LunchFormData>({
   startTime: null,
   endTime: null
 })
 
 const isSettingsSaved = ref(false)
+
+// Схема валидации формы
+const lunchSchema = v.object({
+  startTime: v.pipe(
+      v.string(),
+      v.minLength(1, 'Укажите время начала обеда')
+  ),
+  endTime: v.pipe(
+      v.string(),
+      v.minLength(1, 'Укажите время окончания обеда')
+  )
+})
+
+type LunchSchema = v.InferOutput<typeof lunchSchema>
 
 // Флаг доступности методов timeman
 const isTimemanAvailable = ref<boolean | null>(null)
@@ -166,19 +181,17 @@ const showUnavailableMessage = computed(() => {
 
 // Форматирование времени обеда для отображения
 const formattedLunchStart = computed(() => {
-  if (!lunchSettings.value.startTime) return '—'
-  const time = lunchSettings.value.startTime
-  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
+  if (!lunchForm.startTime) return '—'
+  return lunchForm.startTime
 })
 
 const formattedLunchEnd = computed(() => {
-  if (!lunchSettings.value.endTime) return '—'
-  const time = lunchSettings.value.endTime
-  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
+  if (!lunchForm.endTime) return '—'
+  return lunchForm.endTime
 })
 
 const hasLunchSettings = computed(() => {
-  return lunchSettings.value.startTime !== null && lunchSettings.value.endTime !== null
+  return lunchForm.startTime !== null && lunchForm.endTime !== null
 })
 
 // ==========================================================================
@@ -207,25 +220,17 @@ const getCookie = (name: string): string | null => {
 }
 
 const saveLunchSettingsToCookies = () => {
-  if (lunchSettings.value.startTime) {
-    const timeStr = `${lunchSettings.value.startTime.hour.toString().padStart(2, '0')}:${lunchSettings.value.startTime.minute.toString().padStart(2, '0')}`
-    setCookie('lunch_start_time', timeStr)
+  if (lunchForm.startTime) {
+    setCookie('lunch_start_time', lunchForm.startTime)
   } else {
-    setCookie('lunch_start_time', '', 0) // удаляем куку
+    setCookie('lunch_start_time', '', 0)
   }
 
-  if (lunchSettings.value.endTime) {
-    const timeStr = `${lunchSettings.value.endTime.hour.toString().padStart(2, '0')}:${lunchSettings.value.endTime.minute.toString().padStart(2, '0')}`
-    setCookie('lunch_end_time', timeStr)
+  if (lunchForm.endTime) {
+    setCookie('lunch_end_time', lunchForm.endTime)
   } else {
     setCookie('lunch_end_time', '', 0)
   }
-
-  isSettingsSaved.value = true
-
-  setTimeout(() => {
-    isSettingsSaved.value = false
-  }, 2000)
 }
 
 const loadLunchSettingsFromCookies = () => {
@@ -233,26 +238,41 @@ const loadLunchSettingsFromCookies = () => {
   const endTimeStr = getCookie('lunch_end_time')
 
   if (startTimeStr && startTimeStr !== '') {
-    try {
-      const [hours, minutes] = startTimeStr.split(':')
-      if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
-        lunchSettings.value.startTime = new Time(parseInt(hours), parseInt(minutes), 0)
-      }
-    } catch (e) {
-      console.error('Ошибка парсинга времени начала обеда', e)
-    }
+    lunchForm.startTime = startTimeStr
   }
 
   if (endTimeStr && endTimeStr !== '') {
-    try {
-      const [hours, minutes] = endTimeStr.split(':')
-      if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
-        lunchSettings.value.endTime = new Time(parseInt(hours), parseInt(minutes), 0)
-      }
-    } catch (e) {
-      console.error('Ошибка парсинга времени завершения обеда', e)
-    }
+    lunchForm.endTime = endTimeStr
   }
+}
+
+// Преобразование строки времени в объект Time для B24InputTime
+const stringToTime = (timeStr: string | null): Time | null => {
+  if (!timeStr) return null
+  const [hours, minutes] = timeStr.split(':')
+  if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
+    return new Time(parseInt(hours), parseInt(minutes), 0)
+  }
+  return null
+}
+
+const timeToString = (time: Time | null): string | null => {
+  if (!time) return null
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
+}
+
+// Обработчик отправки формы
+const handleSaveLunchSettings = (event: FormSubmitEvent<LunchSchema>) => {
+  saveLunchSettingsToCookies()
+  isSettingsSaved.value = true
+  toast.add({
+    description: 'Настройки времени обеда сохранены',
+    variant: 'success'
+  })
+
+  setTimeout(() => {
+    isSettingsSaved.value = false
+  }, 2000)
 }
 
 // ==========================================================================
@@ -487,14 +507,6 @@ const handleMainAction = () => {
   }
 }
 
-const saveLunchSettings = () => {
-  saveLunchSettingsToCookies()
-  toast.add({
-    description: 'Настройки времени обеда сохранены',
-    variant: 'success'
-  })
-}
-
 // ==========================================================================
 // ЖИЗНЕННЫЙ ЦИКЛ
 // ==========================================================================
@@ -685,7 +697,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Настройки времени обеда - улучшенная группировка -->
+        <!-- Настройки времени обеда - с использованием Form -->
         <div class="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div class="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
             <h3 class="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -695,64 +707,72 @@ onUnmounted(() => {
           </div>
 
           <div class="p-4">
-            <!-- Группированный блок времени -->
-            <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
-              <!-- Время начала -->
-              <div class="flex-1 min-w-[120px]">
-                <div class="text-xs text-gray-500 mb-1 text-center">Начало</div>
-                <B24InputTime
-                    v-model="lunchSettings.startTime"
-                    :hour-cycle="24"
-                    size="xl"
-                    color="air-primary"
-                    highlight
-                />
+            <B24Form
+                :schema="lunchSchema"
+                :state="lunchForm"
+                @submit="handleSaveLunchSettings"
+            >
+              <!-- Группированный блок времени -->
+              <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
+                <!-- Время начала -->
+                <div class="flex-1 min-w-[120px]">
+                  <B24FormField name="startTime" label="Начало" class="text-center">
+                    <B24InputTime
+                        v-model="lunchForm.startTime"
+                        :hour-cycle="24"
+                        size="xl"
+                        color="air-primary"
+                        highlight
+                    />
+                  </B24FormField>
+                </div>
+
+                <!-- Разделитель -->
+                <div class="text-gray-400 font-medium text-lg">—</div>
+
+                <!-- Время окончания -->
+                <div class="flex-1 min-w-[120px]">
+                  <B24FormField name="endTime" label="Окончание" class="text-center">
+                    <B24InputTime
+                        v-model="lunchForm.endTime"
+                        :hour-cycle="24"
+                        size="xl"
+                        color="air-primary"
+                        highlight
+                    />
+                  </B24FormField>
+                </div>
               </div>
 
-              <!-- Разделитель -->
-              <div class="text-gray-400 font-medium text-lg">—</div>
-
-              <!-- Время окончания -->
-              <div class="flex-1 min-w-[120px]">
-                <div class="text-xs text-gray-500 mb-1 text-center">Окончание</div>
-                <B24InputTime
-                    v-model="lunchSettings.endTime"
-                    :hour-cycle="24"
-                    size="xl"
-                    color="air-primary"
-                    highlight
-                />
+              <!-- Отображение выбранного интервала -->
+              <div v-if="hasLunchSettings" class="mt-4 text-center">
+                <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+                  <ClockIcon class="w-3 h-3" />
+                  {{ formattedLunchStart }} → {{ formattedLunchEnd }}
+                </span>
               </div>
-            </div>
+              <div v-else class="mt-4 text-center text-xs text-gray-400">
+                Выберите время начала и окончания обеда
+              </div>
 
-            <!-- Отображение выбранного интервала -->
-            <div v-if="hasLunchSettings" class="mt-4 text-center">
-              <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
-                <ClockIcon class="w-3 h-3" />
-                {{ formattedLunchStart }} → {{ formattedLunchEnd }}
-              </span>
-            </div>
-            <div v-else class="mt-4 text-center text-xs text-gray-400">
-              Выберите время начала и окончания обеда
-            </div>
-
-            <!-- Кнопка сохранения -->
-            <div class="mt-4 flex justify-center">
-              <B24Button
-                  @click="saveLunchSettings"
-                  size="sm"
-                  variant="outline"
-                  color="air-primary"
-                  class="min-w-[120px]"
-              >
-                <template #leading>
-                  <svg v-if="isSettingsSaved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </template>
-                {{ isSettingsSaved ? 'Сохранено' : 'Сохранить настройки' }}
-              </B24Button>
-            </div>
+              <!-- Кнопка сохранения -->
+              <div class="mt-4 flex justify-center">
+                <B24Button
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                    color="air-primary"
+                    class="min-w-[120px]"
+                >
+                  <template #leading>
+                    <svg v-if="isSettingsSaved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </template>
+                  {{ isSettingsSaved ? 'Сохранено' : 'Сохранить настройки' }}
+                </B24Button>
+              </div>
+            </B24Form>
           </div>
         </div>
 
