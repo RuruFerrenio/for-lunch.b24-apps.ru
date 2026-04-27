@@ -716,13 +716,14 @@ onUnmounted(() => {
               <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
                 <!-- Время начала -->
                 <div class="flex-1 min-w-[120px]">
-                  <B24FormField name="startTime" label="Начало" class="text-center">
+                  <B24FormField name="startTime" class="text-center">
                     <B24InputTime
                         v-model="lunchForm.startTime"
                         :hour-cycle="24"
                         size="xl"
                         color="air-primary"
                         highlight
+                        tag="Начало"
                     />
                   </B24FormField>
                 </div>
@@ -732,13 +733,14 @@ onUnmounted(() => {
 
                 <!-- Время окончания -->
                 <div class="flex-1 min-w-[120px]">
-                  <B24FormField name="endTime" label="Окончание" class="text-center">
+                  <B24FormField name="endTime" class="text-center">
                     <B24InputTime
                         v-model="lunchForm.endTime"
                         :hour-cycle="24"
                         size="xl"
                         color="air-primary"
                         highlight
+                        tag="Окончание"
                     />
                   </B24FormField>
                 </div>
