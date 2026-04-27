@@ -400,7 +400,7 @@ watch(() => formData.value.lunchEnd.method, () => {
                 <B24InputTime
                     v-model="formData.defaultLunchTime.startTime"
                     :hour-cycle="24"
-                    size="md"
+                    size="lg"
                     color="air-primary"
                 />
               </div>
@@ -411,7 +411,7 @@ watch(() => formData.value.lunchEnd.method, () => {
                 <B24InputTime
                     v-model="formData.defaultLunchTime.endTime"
                     :hour-cycle="24"
-                    size="md"
+                    size="lg"
                     color="air-primary"
                 />
               </div>

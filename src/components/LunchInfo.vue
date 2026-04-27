@@ -167,12 +167,14 @@ const showUnavailableMessage = computed(() => {
 // Форматирование времени обеда для отображения
 const formattedLunchStart = computed(() => {
   if (!lunchSettings.value.startTime) return '—'
-  return lunchSettings.value.startTime.toString().slice(0, 5)
+  const time = lunchSettings.value.startTime
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
 })
 
 const formattedLunchEnd = computed(() => {
   if (!lunchSettings.value.endTime) return '—'
-  return lunchSettings.value.endTime.toString().slice(0, 5)
+  const time = lunchSettings.value.endTime
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
 })
 
 const hasLunchSettings = computed(() => {
@@ -206,13 +208,15 @@ const getCookie = (name: string): string | null => {
 
 const saveLunchSettingsToCookies = () => {
   if (lunchSettings.value.startTime) {
-    setCookie('lunch_start_time', lunchSettings.value.startTime.toString())
+    const timeStr = `${lunchSettings.value.startTime.hour.toString().padStart(2, '0')}:${lunchSettings.value.startTime.minute.toString().padStart(2, '0')}`
+    setCookie('lunch_start_time', timeStr)
   } else {
     setCookie('lunch_start_time', '', 0) // удаляем куку
   }
 
   if (lunchSettings.value.endTime) {
-    setCookie('lunch_end_time', lunchSettings.value.endTime.toString())
+    const timeStr = `${lunchSettings.value.endTime.hour.toString().padStart(2, '0')}:${lunchSettings.value.endTime.minute.toString().padStart(2, '0')}`
+    setCookie('lunch_end_time', timeStr)
   } else {
     setCookie('lunch_end_time', '', 0)
   }
@@ -228,19 +232,23 @@ const loadLunchSettingsFromCookies = () => {
   const startTimeStr = getCookie('lunch_start_time')
   const endTimeStr = getCookie('lunch_end_time')
 
-  if (startTimeStr) {
+  if (startTimeStr && startTimeStr !== '') {
     try {
       const [hours, minutes] = startTimeStr.split(':')
-      lunchSettings.value.startTime = new Time(parseInt(hours), parseInt(minutes), 0)
+      if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
+        lunchSettings.value.startTime = new Time(parseInt(hours), parseInt(minutes), 0)
+      }
     } catch (e) {
       console.error('Ошибка парсинга времени начала обеда', e)
     }
   }
 
-  if (endTimeStr) {
+  if (endTimeStr && endTimeStr !== '') {
     try {
       const [hours, minutes] = endTimeStr.split(':')
-      lunchSettings.value.endTime = new Time(parseInt(hours), parseInt(minutes), 0)
+      if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
+        lunchSettings.value.endTime = new Time(parseInt(hours), parseInt(minutes), 0)
+      }
     } catch (e) {
       console.error('Ошибка парсинга времени завершения обеда', e)
     }
@@ -690,9 +698,8 @@ onUnmounted(() => {
               <B24InputTime
                   v-model="lunchSettings.startTime"
                   :hour-cycle="24"
-                  size="md"
+                  size="lg"
                   color="air-primary"
-                  placeholder="Выберите время"
               />
             </div>
             <div>
@@ -700,9 +707,8 @@ onUnmounted(() => {
               <B24InputTime
                   v-model="lunchSettings.endTime"
                   :hour-cycle="24"
-                  size="md"
+                  size="lg"
                   color="air-primary"
-                  placeholder="Выберите время"
               />
             </div>
           </div>
