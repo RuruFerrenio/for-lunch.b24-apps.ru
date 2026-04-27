@@ -1,4 +1,3 @@
-<!-- app.vue (исправленный) -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -7,8 +6,13 @@ import LunchManager from './components/LunchManager.vue'
 
 const route = useRoute()
 
-// Функция для получения куки
+// ==========================================================================
+// ФУНКЦИИ ДЛЯ РАБОТЫ С КУКИ (УНИФИЦИРОВАННЫЕ)
+// ==========================================================================
+
 function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null
+
   const nameEQ = `${name}=`
   const ca = document.cookie.split(';')
   for (let i = 0; i < ca.length; i++) {
@@ -18,6 +22,21 @@ function getCookie(name: string): string | null {
   }
   return null
 }
+
+function deleteCookie(name: string): void {
+  if (typeof document === 'undefined') return
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure`
+}
+
+// Очистка временных флагов (используем ту же логику, что в основном компоненте)
+function clearTempFlags(): void {
+  deleteCookie('open_app_mode')
+  deleteCookie('modal_type')
+}
+
+// ==========================================================================
+// СОСТОЯНИЯ КОМПОНЕНТА
+// ==========================================================================
 
 const openAppMode = ref<'default' | 'lunch'>('default')
 const lunchMode = ref<'start' | 'end' | null>(null)
@@ -34,12 +53,16 @@ const showSidebar = computed(() => {
       route.path === '/instructions'
 })
 
-onMounted(() => {
-  // Читаем куки при загрузке
-  const lunch = getCookie('lunch_mode')
-  const lunchType = getCookie('lunch_type')
+// ==========================================================================
+// ИНИЦИАЛИЗАЦИЯ
+// ==========================================================================
 
-  if (lunch === 'modal') {
+onMounted(() => {
+  // Читаем куки при загрузке (используем те же имена, что в основном компоненте)
+  const openAppModeValue = getCookie('open_app_mode')
+  const lunchType = getCookie('modal_type')
+
+  if (openAppModeValue === 'modal') {
     openAppMode.value = 'lunch'
     if (lunchType === 'start' || lunchType === 'end') {
       lunchMode.value = lunchType
@@ -47,13 +70,26 @@ onMounted(() => {
   } else {
     openAppMode.value = 'default'
   }
+
   isLoading.value = false
 
+  // Загружаем Bitrix24 API
   const script = document.createElement('script')
   script.src = '//api.bitrix24.com/api/v1/'
   script.async = true
   document.head.appendChild(script)
+
+  // Очищаем временные флаги после загрузки, если они не используются
+  // (можно оставить или удалить в зависимости от логики)
+  // clearTempFlags()
 })
+
+// ==========================================================================
+// ОЧИСТКА ПРИ РАЗМОНТИРОВАНИИ
+// ==========================================================================
+
+// Обратите внимание: onUnmounted добавлять не нужно, так как куки
+// очищаются в основном компоненте LunchManager после закрытия модалки
 </script>
 
 <template>
@@ -80,6 +116,7 @@ onMounted(() => {
                   v-if="lunchMode"
                   :mode="lunchMode"
                   :auto-close-delay="2000"
+                  @closed="openAppMode = 'default'"
               />
               <div v-else class="text-center py-12">
                 <p class="text-gray-500">Не указан тип операции для обеда</p>
