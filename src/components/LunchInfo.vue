@@ -38,7 +38,8 @@ interface UserProfile {
 }
 
 interface LunchFormData {
-  timeRange: { start: Time | null; end: Time | null } | null
+  startTime: string | null
+  endTime: string | null
 }
 
 const toast = useToast()
@@ -51,20 +52,23 @@ const currentUser = ref<UserProfile | null>(null)
 const error = ref<string | null>(null)
 const isRefreshing = ref(false)
 
-// Настройки обеда для формы - изначальное значение null
+// Настройки обеда для формы
 const lunchForm = reactive<LunchFormData>({
-  timeRange: null
+  startTime: null,
+  endTime: null
 })
 
 const isSettingsSaved = ref(false)
 
 // Схема валидации формы
 const lunchSchema = v.object({
-  timeRange: v.pipe(
-      v.any(),
-      v.custom((value) => {
-        return value !== null && value.start !== null && value.end !== null
-      }, 'Укажите интервал обеда')
+  startTime: v.pipe(
+      v.string(),
+      v.minLength(1, 'Укажите время начала обеда')
+  ),
+  endTime: v.pipe(
+      v.string(),
+      v.minLength(1, 'Укажите время окончания обеда')
   )
 })
 
@@ -177,17 +181,17 @@ const showUnavailableMessage = computed(() => {
 
 // Форматирование времени обеда для отображения
 const formattedLunchStart = computed(() => {
-  if (!lunchForm.timeRange?.start) return '—'
-  return `${lunchForm.timeRange.start.hour.toString().padStart(2, '0')}:${lunchForm.timeRange.start.minute.toString().padStart(2, '0')}`
+  if (!lunchForm.startTime) return '—'
+  return lunchForm.startTime
 })
 
 const formattedLunchEnd = computed(() => {
-  if (!lunchForm.timeRange?.end) return '—'
-  return `${lunchForm.timeRange.end.hour.toString().padStart(2, '0')}:${lunchForm.timeRange.end.minute.toString().padStart(2, '0')}`
+  if (!lunchForm.endTime) return '—'
+  return lunchForm.endTime
 })
 
 const hasLunchSettings = computed(() => {
-  return lunchForm.timeRange?.start !== null && lunchForm.timeRange?.end !== null
+  return lunchForm.startTime !== null && lunchForm.endTime !== null
 })
 
 // ==========================================================================
@@ -216,11 +220,15 @@ const getCookie = (name: string): string | null => {
 }
 
 const saveLunchSettingsToCookies = () => {
-  if (lunchForm.timeRange?.start && lunchForm.timeRange?.end) {
-    setCookie('lunch_start_time', `${lunchForm.timeRange.start.hour}:${lunchForm.timeRange.start.minute}`)
-    setCookie('lunch_end_time', `${lunchForm.timeRange.end.hour}:${lunchForm.timeRange.end.minute}`)
+  if (lunchForm.startTime) {
+    setCookie('lunch_start_time', lunchForm.startTime)
   } else {
     setCookie('lunch_start_time', '', 0)
+  }
+
+  if (lunchForm.endTime) {
+    setCookie('lunch_end_time', lunchForm.endTime)
+  } else {
     setCookie('lunch_end_time', '', 0)
   }
 }
@@ -229,17 +237,28 @@ const loadLunchSettingsFromCookies = () => {
   const startTimeStr = getCookie('lunch_start_time')
   const endTimeStr = getCookie('lunch_end_time')
 
-  if (startTimeStr && startTimeStr !== '' && endTimeStr && endTimeStr !== '') {
-    const [startHours, startMinutes] = startTimeStr.split(':')
-    const [endHours, endMinutes] = endTimeStr.split(':')
-
-    if (startHours && startMinutes && endHours && endMinutes) {
-      lunchForm.timeRange = {
-        start: new Time(parseInt(startHours), parseInt(startMinutes), 0),
-        end: new Time(parseInt(endHours), parseInt(endMinutes), 0)
-      }
-    }
+  if (startTimeStr && startTimeStr !== '') {
+    lunchForm.startTime = startTimeStr
   }
+
+  if (endTimeStr && endTimeStr !== '') {
+    lunchForm.endTime = endTimeStr
+  }
+}
+
+// Преобразование строки времени в объект Time для B24InputTime
+const stringToTime = (timeStr: string | null): Time | null => {
+  if (!timeStr) return null
+  const [hours, minutes] = timeStr.split(':')
+  if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
+    return new Time(parseInt(hours), parseInt(minutes), 0)
+  }
+  return null
+}
+
+const timeToString = (time: Time | null): string | null => {
+  if (!time) return null
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
 }
 
 // Обработчик отправки формы
@@ -693,18 +712,36 @@ onUnmounted(() => {
                 :state="lunchForm"
                 @submit="handleSaveLunchSettings"
             >
-              <!-- Range Input Time с поддержкой минут -->
-              <div class="flex justify-center">
-                <B24InputTime
-                    v-model="lunchForm.timeRange"
-                    range
-                    :hour-cycle="24"
-                    size="xl"
-                    color="air-primary"
-                    highlight
-                    tag="Интервал обеда"
-                    tag-color="air-primary-warning"
-                />
+              <!-- Группированный блок времени -->
+              <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
+                <!-- Время начала -->
+                <div class="flex-1 min-w-[120px]">
+                  <B24FormField name="startTime" label="Начало" class="text-center">
+                    <B24InputTime
+                        v-model="lunchForm.startTime"
+                        :hour-cycle="24"
+                        size="xl"
+                        color="air-primary"
+                        highlight
+                    />
+                  </B24FormField>
+                </div>
+
+                <!-- Разделитель -->
+                <div class="text-gray-400 font-medium text-lg">—</div>
+
+                <!-- Время окончания -->
+                <div class="flex-1 min-w-[120px]">
+                  <B24FormField name="endTime" label="Окончание" class="text-center">
+                    <B24InputTime
+                        v-model="lunchForm.endTime"
+                        :hour-cycle="24"
+                        size="xl"
+                        color="air-primary"
+                        highlight
+                    />
+                  </B24FormField>
+                </div>
               </div>
 
               <!-- Отображение выбранного интервала -->
@@ -715,7 +752,7 @@ onUnmounted(() => {
                 </span>
               </div>
               <div v-else class="mt-4 text-center text-xs text-gray-400">
-                Выберите интервал обеда (часы и минуты)
+                Выберите время начала и окончания обеда
               </div>
 
               <!-- Кнопка сохранения -->
