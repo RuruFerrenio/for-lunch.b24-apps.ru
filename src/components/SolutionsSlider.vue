@@ -72,7 +72,7 @@ const solutions: Solution[] = [
     iconComponent: markRaw(ClockIcon),
     color: 'bg-blue-500',
     features: ['Журнал посещенных страниц', 'Упрощение процедуры отчета о затраченном времени для сотрудников', 'Пассивная защита от бездействия', 'Контроль начала и завершения рабочего дня', 'Глубокий аудит временных затрат', 'Мгновенные отчеты о занятости', 'Детальная статистика по активности', 'Адаптация под мобильные устройства'],
-    link: 'https://marketplace.bitrix24.ru/tekhnogalera.chistoe_vremya/',
+    link: '/marketplace/detail/tekhnogalera.chistoe_vremya/',
     installed: false,
     badge: 'Новинка',
     badgeClass: 'bg-blue-100 text-blue-800'
@@ -84,7 +84,7 @@ const solutions: Solution[] = [
     iconComponent: markRaw(PowerIcon),
     color: 'bg-green-500',
     features: ['Автоматический контроль начала рабочего дня', 'Автоматический контроль завершения рабочего дня', 'Бесшовная интеграция с интерфейсом битрикс24', 'Гибкая настройка'],
-    link: 'https://marketplace.bitrix24.ru/tekhnogalera.avtomaticheskoe_nachalo_i_zavershenie_rabochego_dnya/',
+    link: '/marketplace/detail/tekhnogalera.avtomaticheskoe_nachalo_i_zavershenie_rabochego_dnya/',
     installed: false,
     badge: 'Новинка',
     badgeClass: 'bg-blue-100 text-blue-800'
