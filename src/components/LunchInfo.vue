@@ -197,6 +197,34 @@ const hasLunchSettings = computed(() => {
   return lunchForm.startTime !== null && lunchForm.endTime !== null
 })
 
+// Вычисляемая длительность обеда
+const getLunchDuration = computed(() => {
+  if (!lunchForm.startTime || !lunchForm.endTime) {
+    return '—'
+  }
+
+  const [startHours, startMinutes] = lunchForm.startTime.split(':').map(Number)
+  const [endHours, endMinutes] = lunchForm.endTime.split(':').map(Number)
+
+  let totalMinutes = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes)
+
+  // Если время окончания меньше времени начала (переход через полночь)
+  if (totalMinutes < 0) {
+    totalMinutes += 24 * 60
+  }
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours === 0) {
+    return `${minutes} мин`
+  } else if (minutes === 0) {
+    return `${hours} ч`
+  } else {
+    return `${hours} ч ${minutes} мин`
+  }
+})
+
 // ==========================================================================
 // РАБОТА С КУКИ
 // ==========================================================================
@@ -758,11 +786,11 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- Отображение выбранного интервала -->
+              <!-- Отображение длительности обеда -->
               <div v-if="hasLunchSettings" class="mt-4 text-center">
                 <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
                   <ClockIcon class="w-3 h-3" />
-                  {{ formattedLunchStart }} → {{ formattedLunchEnd }}
+                  {{ getLunchDuration }}
                 </span>
               </div>
               <div v-else class="mt-4 text-center text-xs text-gray-400">
