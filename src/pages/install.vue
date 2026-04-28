@@ -10,6 +10,7 @@ import SuccessIcon from '@bitrix24/b24icons-vue/button/SuccessIcon'
 import ErrorIcon from '@bitrix24/b24icons-vue/main/UnavailableIcon'
 import LoadingIcon from '@bitrix24/b24icons-vue/animated/LoaderWaitIcon'
 import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+import { Time } from '@internationalized/date'
 
 // Состояние
 const currentStep = ref(1)
@@ -56,13 +57,13 @@ const configSettings = ref({
   }
 })
 
-// URL обработчиков (остаются те же)
+// URL обработчиков
 const HANDLERS = {
   pageBackgroundWorker: `${window.location.origin}/dist/widgets/background-handler`,
   restAppUri: `${window.location.origin}/dist/`
 }
 
-// Конфигурации встроек (адаптированные под обед)
+// Конфигурации встроек
 const PLACEMENT_CONFIGS = {
   PAGE_BACKGROUND_WORKER: {
     title: 'Фоновая встройка',
@@ -221,7 +222,14 @@ const placementManager = {
   }
 }
 
-// Сохранение настроек приложения (расширенная версия для обеда)
+// Преобразование Time в строку
+const timeToString = (time: Time | string | null): string | null => {
+  if (!time) return null
+  if (typeof time === 'string') return time
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
+}
+
+// Сохранение настроек приложения через app.option.set
 const saveSettings = async () => {
   settingsStatus.value = 'loading'
   try {
@@ -671,7 +679,7 @@ onUnmounted(() => {
 
             <div class="flex justify-end gap-3 pt-6 border-t">
               <B24Button v-if="!installationComplete" @click="prevStep" label="Назад" size="lg" variant="outline" :disabled="isInstalling" :icon="ArrowLeftLIcon" />
-              <B24Button v-if="installationComplete" @click="nextStep" label="Продолжить" size="lg" color="primary" :icon="ArrowRightLIcon" icon-position="right" />
+              <B24Button v-if="installationComplete && (placementStatus.pageBackgroundWorker === 'success' || placementStatus.pageBackgroundWorker === 'error') && (placementStatus.restAppUri === 'success' || placementStatus.restAppUri === 'error')" @click="nextStep" label="Продолжить" size="lg" color="primary" :icon="ArrowRightLIcon" icon-position="right" />
             </div>
           </div>
         </div>
