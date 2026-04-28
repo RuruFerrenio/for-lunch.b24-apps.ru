@@ -85,8 +85,8 @@ const solutions: Solution[] = [
     features: ['Автоматический контроль начала рабочего дня', 'Автоматический контроль завершения рабочего дня', 'Бесшовная интеграция с интерфейсом битрикс24', 'Гибкая настройка'],
     link: 'https://marketplace.bitrix24.ru/tekhnogalera.avtomaticheskoe_nachalo_i_zavershenie_rabochego_dnya/',
     installed: false,
-    badge: null,
-    badgeClass: ''
+    badge: 'Новинка',
+    badgeClass: 'bg-blue-100 text-blue-800'
   }
 ]
 
