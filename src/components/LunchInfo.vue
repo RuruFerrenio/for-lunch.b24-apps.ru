@@ -704,7 +704,7 @@ onUnmounted(() => {
               <ClockIcon class="w-4 h-4 text-amber-600" />
               Настройки времени обеда
             </h3>
-          </div>
+          </div
 
           <div class="p-4">
             <B24Form
@@ -712,12 +712,11 @@ onUnmounted(() => {
                 :state="lunchForm"
                 @submit="handleSaveLunchSettings"
             >
-              <!-- Группированный блок времени  -->
-              <!-- Группированный блок времени  -->
+              <!-- Группированный блок времени -->
               <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 <!-- Время начала -->
-                <div>
-                  <B24FormField name="startTime" label="Начало">
+                <div class="min-w-[120px]">
+                  <B24FormField name="startTime" label="Начало" class="text-center">
                     <B24InputTime
                         v-model="lunchForm.startTime"
                         :hour-cycle="24"
@@ -732,8 +731,8 @@ onUnmounted(() => {
                 <div class="text-gray-400 font-medium text-lg">—</div>
 
                 <!-- Время окончания -->
-                <div>
-                  <B24FormField name="endTime" label="Окончание">
+                <div class="min-w-[120px]">
+                  <B24FormField name="endTime" label="Окончание" class="text-center">
                     <B24InputTime
                         v-model="lunchForm.endTime"
                         :hour-cycle="24"
@@ -745,19 +744,19 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- Отображение выбранного интервала - выравнивание влево -->
-              <div v-if="hasLunchSettings" class="mt-4">
+              <!-- Отображение выбранного интервала -->
+              <div v-if="hasLunchSettings" class="mt-4 text-center">
                 <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
                   <ClockIcon class="w-3 h-3" />
                   {{ formattedLunchStart }} → {{ formattedLunchEnd }}
                 </span>
               </div>
-              <div v-else class="mt-4 text-xs text-gray-400">
+              <div v-else class="mt-4 text-center text-xs text-gray-400">
                 Выберите время начала и окончания обеда
               </div>
 
-              <!-- Кнопка сохранения - выравнивание влево -->
-              <div class="mt-4">
+              <!-- Кнопка сохранения -->
+              <div class="mt-4 flex justify-center">
                 <B24Button
                     type="submit"
                     size="sm"
