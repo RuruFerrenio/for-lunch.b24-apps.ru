@@ -2,9 +2,6 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
 import { Time } from '@internationalized/date'
-import ClockIcon from '@bitrix24/b24icons-vue/outline/ClockIcon'
-import * as v from 'valibot'
-import type { FormSubmitEvent } from '@bitrix24/b24ui-nuxt'
 
 const toast = useToast()
 
@@ -27,20 +24,6 @@ interface FormData {
     endTime: Time | null
   }
 }
-
-// Схема валидации для времени обеда
-const lunchTimeSchema = v.object({
-  startTime: v.pipe(
-      v.nullable(v.any()),
-      v.custom((val) => val === null || val instanceof Time, 'Выберите время начала обеда')
-  ),
-  endTime: v.pipe(
-      v.nullable(v.any()),
-      v.custom((val) => val === null || val instanceof Time, 'Выберите время окончания обеда')
-  )
-})
-
-type LunchTimeSchema = v.InferOutput<typeof lunchTimeSchema>
 
 // Инициализация formData
 const formData = ref<FormData>({
@@ -67,7 +50,6 @@ const formData = ref<FormData>({
 
 const isProcessing = ref(false)
 const isBitrixLoaded = ref(false)
-const isSettingsSaved = ref(false)
 
 // Вычисляемые свойства для отображения текста
 const getLunchStartMethodText = computed(() => {
@@ -100,37 +82,6 @@ const formattedDefaultLunchEnd = computed(() => {
   if (!formData.value.defaultLunchTime.endTime) return '—'
   const time = formData.value.defaultLunchTime.endTime
   return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
-})
-
-// Вычисляемая длительность обеда
-const getLunchDuration = computed(() => {
-  const startTime = formData.value.defaultLunchTime.startTime
-  const endTime = formData.value.defaultLunchTime.endTime
-
-  if (!startTime || !endTime) {
-    return '—'
-  }
-
-  let totalMinutes = (endTime.hour * 60 + endTime.minute) - (startTime.hour * 60 + startTime.minute)
-
-  if (totalMinutes < 0) {
-    totalMinutes += 24 * 60
-  }
-
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-
-  if (hours === 0) {
-    return `${minutes} мин`
-  } else if (minutes === 0) {
-    return `${hours} ч`
-  } else {
-    return `${hours} ч ${minutes} мин`
-  }
-})
-
-const hasLunchSettings = computed(() => {
-  return formData.value.defaultLunchTime.startTime !== null && formData.value.defaultLunchTime.endTime !== null
 })
 
 // Функции для уведомлений
@@ -166,31 +117,21 @@ async function toggleWeekendActivity(newValue: boolean): Promise<void> {
 // НАСТРОЙКИ ОБЩЕГО ВРЕМЕНИ ОБЕДА
 // ==========================================================================
 
-// Преобразование Time в строку
-const timeToString = (time: Time | null): string => {
-  if (!time) return ''
-  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
-}
-
-// Обработчик сохранения настроек времени обеда
-const handleSaveDefaultLunchTime = async (event: FormSubmitEvent<LunchTimeSchema>) => {
+async function saveDefaultLunchTimeSettings(): Promise<void> {
   try {
     isProcessing.value = true
-
     if (isBitrixLoaded.value && typeof BX24 !== 'undefined') {
-      const startTimeStr = timeToString(formData.value.defaultLunchTime.startTime)
-      const endTimeStr = timeToString(formData.value.defaultLunchTime.endTime)
+      const startTimeStr = formData.value.defaultLunchTime.startTime
+          ? `${formData.value.defaultLunchTime.startTime.hour.toString().padStart(2, '0')}:${formData.value.defaultLunchTime.startTime.minute.toString().padStart(2, '0')}`
+          : ''
+      const endTimeStr = formData.value.defaultLunchTime.endTime
+          ? `${formData.value.defaultLunchTime.endTime.hour.toString().padStart(2, '0')}:${formData.value.defaultLunchTime.endTime.minute.toString().padStart(2, '0')}`
+          : ''
 
       await BX24.appOption.set('lunch_default_start_time', startTimeStr)
       await BX24.appOption.set('lunch_default_end_time', endTimeStr)
     }
-
-    isSettingsSaved.value = true
     showNotification('success', 'Настройки времени обеда сохранены')
-
-    setTimeout(() => {
-      isSettingsSaved.value = false
-    }, 2000)
   } catch {
     showNotification('error', 'Ошибка сохранения настроек времени обеда')
   } finally {
@@ -328,11 +269,18 @@ async function loadSettings(): Promise<void> {
 
   try {
     const [
+      // Настройки активности в выходные
       weekendActivityEnabled,
+
+      // Настройки общего времени обеда
       lunchDefaultStartTime,
       lunchDefaultEndTime,
+
+      // Настройки начала обеда
       lunchStartEnabled,
       lunchStartMethod,
+
+      // Настройки завершения обеда
       lunchEndEnabled,
       lunchEndMethod
     ] = await Promise.all([
@@ -345,20 +293,24 @@ async function loadSettings(): Promise<void> {
       BX24.appOption.get('lunch_end_method')
     ])
 
+    // Загрузка настроек активности в выходные
     formData.value.weekendActivity.enabled = normalizeBoolean(weekendActivityEnabled)
 
+    // Загрузка общего времени обеда
     const startTime = parseTimeFromString(lunchDefaultStartTime)
     const endTime = parseTimeFromString(lunchDefaultEndTime)
 
     formData.value.defaultLunchTime.startTime = startTime
     formData.value.defaultLunchTime.endTime = endTime
 
+    // Загрузка настроек начала обеда
     formData.value.lunchStart.enabled = normalizeBoolean(lunchStartEnabled)
     const startMethod = normalizeMethod(lunchStartMethod, ['auto', 'modal', 'chat', 'push'])
     if (startMethod) {
       formData.value.lunchStart.method = startMethod
     }
 
+    // Загрузка настроек завершения обеда
     formData.value.lunchEnd.enabled = normalizeBoolean(lunchEndEnabled)
     const endMethod = normalizeMethod(lunchEndMethod, ['auto', 'modal', 'chat', 'push'])
     if (endMethod) {
@@ -383,6 +335,7 @@ onMounted(async () => {
   }
 })
 
+// Наблюдатели для автоматического сохранения при изменении метода
 watch(() => formData.value.lunchStart.method, () => {
   if (isProcessing.value) return
   updateLunchStartMethod()
@@ -423,72 +376,61 @@ watch(() => formData.value.lunchEnd.method, () => {
       </div>
     </B24Card>
 
-    <!-- Блок 2: Настройки времени обеда (НОВЫЙ ВНЕШНИЙ ВИД) -->
+    <!-- Блок 2: Настройки времени обеда -->
     <B24Card class="mb-8">
-      <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div class="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
-          <h3 class="text-sm font-medium text-gray-700 flex items-center gap-2">
-            <ClockIcon class="w-4 h-4 text-amber-600" />
-            Общее время обеда
-          </h3>
-          <p class="text-xs text-gray-500 mt-0.5">
-            Настройка времени обеда по умолчанию для всех сотрудников
-          </p>
-        </div>
+      <div class="p-0 md:p-6">
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-gray-900">
+                Общее время обеда
+              </h3>
+              <p class="text-sm text-gray-500 mt-1">
+                Настройка времени обеда по умолчанию для всех сотрудников
+              </p>
+            </div>
+          </div>
 
-        <div class="p-4">
-          <B24Form
-              :schema="lunchTimeSchema"
-              :state="formData.defaultLunchTime"
-              @submit="handleSaveDefaultLunchTime"
-          >
-            <!-- Группированный блок времени -->
-            <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
-              <!-- Время начала -->
-              <div class="min-w-[120px]">
-                <B24FormField name="startTime" class="text-center">
-                  <B24InputTime
-                      v-model="formData.defaultLunchTime.startTime"
-                      :hour-cycle="24"
-                      size="xl"
-                      color="air-primary"
-                      highlight
-                      tag="Начало обеда"
-                  />
-                </B24FormField>
+          <div class="space-y-4 pt-4 border-t">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <B24InputTime
+                    v-model="formData.defaultLunchTime.startTime"
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    tag="Время начала обеда"
+                    highlight
+                />
               </div>
-
-              <!-- Разделитель -->
-              <div class="text-gray-400 font-medium text-lg">—</div>
-
-              <!-- Время окончания -->
-              <div class="min-w-[120px]">
-                <B24FormField name="endTime" class="text-center">
-                  <B24InputTime
-                      v-model="formData.defaultLunchTime.endTime"
-                      :hour-cycle="24"
-                      size="xl"
-                      color="air-primary"
-                      highlight
-                      tag="Окончание обеда"
-                  />
-                </B24FormField>
+              <div>
+                <B24InputTime
+                    v-model="formData.defaultLunchTime.endTime"
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    tag="Время завершения обеда"
+                    highlight
+                />
               </div>
             </div>
 
-            <!-- Отображение длительности обеда -->
-            <div v-if="hasLunchSettings" class="mt-4 text-center">
-              <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
-                <ClockIcon class="w-3 h-3" />
-                {{ getLunchDuration }}
-              </span>
-            </div>
-            <div v-else class="mt-4 text-center text-xs text-gray-400">
-              Выберите время начала и окончания обеда
+            <div class="flex items-center justify-between">
+              <div class="text-xs text-gray-400">
+                ⏰ Обед с {{ formattedDefaultLunchStart }} до {{ formattedDefaultLunchEnd }}
+              </div>
+              <B24Button
+                  @click="saveDefaultLunchTimeSettings"
+                  :disabled="isProcessing"
+                  size="sm"
+                  variant="outline"
+                  color="air-primary"
+              >
+                Сохранить время обеда
+              </B24Button>
             </div>
 
-            <!-- Информационное сообщение -->
-            <div class="flex items-start mt-4 p-3 bg-blue-50 rounded-lg">
+            <div class="flex items-start mt-2 p-3 bg-blue-50 rounded-lg">
               <svg class="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
@@ -496,26 +438,7 @@ watch(() => formData.value.lunchEnd.method, () => {
                 <span class="font-medium">Время обеда по умолчанию:</span> используется для автоматических напоминаний и проверок
               </div>
             </div>
-
-            <!-- Кнопка сохранения -->
-            <div class="mt-4 flex justify-center">
-              <B24Button
-                  type="submit"
-                  size="md"
-                  variant="outline"
-                  color="air-primary"
-                  class="min-w-[140px]"
-                  :disabled="isProcessing"
-              >
-                <template #leading>
-                  <svg v-if="isSettingsSaved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                </template>
-                {{ isSettingsSaved ? 'Сохранено' : 'Сохранить настройки' }}
-              </B24Button>
-            </div>
-          </B24Form>
+          </div>
         </div>
       </div>
     </B24Card>
@@ -544,12 +467,14 @@ watch(() => formData.value.lunchEnd.method, () => {
             </div>
           </div>
 
+          <!-- Настройки помощи в начале обеда -->
           <div v-if="formData.lunchStart.enabled" class="space-y-4 pt-4 border-t">
             <B24Form
                 :state="formData"
                 class="space-y-4"
                 @submit="saveLunchStartSettings"
             >
+              <!-- Способ начала обеда -->
               <B24FormField
                   label="Способ начала обеда"
                   name="lunchStartMethod"
@@ -591,6 +516,7 @@ watch(() => formData.value.lunchEnd.method, () => {
               </B24FormField>
             </B24Form>
 
+            <!-- Информация о системе помощи в начале обеда -->
             <div class="space-y-4 mt-6">
               <h4 class="text-sm font-medium text-gray-900">
                 Как работает помощь в начале обеда
@@ -685,12 +611,14 @@ watch(() => formData.value.lunchEnd.method, () => {
             </div>
           </div>
 
+          <!-- Настройки помощи в завершении обеда -->
           <div v-if="formData.lunchEnd.enabled" class="space-y-4 pt-4 border-t">
             <B24Form
                 :state="formData"
                 class="space-y-4"
                 @submit="saveLunchEndSettings"
             >
+              <!-- Способ завершения обеда -->
               <B24FormField
                   label="Способ завершения обеда"
                   name="lunchEndMethod"
@@ -732,6 +660,7 @@ watch(() => formData.value.lunchEnd.method, () => {
               </B24FormField>
             </B24Form>
 
+            <!-- Информация о системе помощи в завершении обеда -->
             <div class="space-y-4 mt-6">
               <h4 class="text-sm font-medium text-gray-900">
                 Как работает помощь в завершении обеда

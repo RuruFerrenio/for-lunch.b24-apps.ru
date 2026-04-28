@@ -690,98 +690,87 @@ onUnmounted(() => {
 
       <!-- Данные -->
       <div v-else-if="showMainContent">
-        <!-- Настройки времени обеда - с использованием Form -->
-        <div class="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div class="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
-            <h3 class="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <ClockIcon class="w-4 h-4 text-amber-600" />
-              Настройки времени обеда
-            </h3>
-          </div>
-
-          <div class="p-4">
-            <!-- Индикатор загрузки настроек -->
-            <div v-if="isLoadingSettings" class="flex justify-center items-center py-4">
-              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-              <span class="ml-2 text-sm text-gray-500">Загрузка настроек...</span>
-            </div>
-
-            <B24Form
-                v-else
-                :schema="lunchSchema"
-                :state="lunchForm"
-                @submit="handleSaveLunchSettings"
-            >
-              <!-- Группированный блок времени -->
-              <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
-                <!-- Время начала -->
-                <div class="min-w-[120px]">
-                  <B24FormField name="startTime" class="text-center">
-                    <B24InputTime
-                        :model-value="stringToTime(lunchForm.startTime)"
-                        @update:model-value="(val: Time | null) => lunchForm.startTime = timeToString(val)"
-                        :hour-cycle="24"
-                        size="xl"
-                        color="air-primary"
-                        highlight
-                        tag="Начало"
-                    />
-                  </B24FormField>
-                </div>
-
-                <!-- Разделитель -->
-                <div class="text-gray-400 font-medium text-lg">—</div>
-
-                <!-- Время окончания -->
-                <div class="min-w-[120px]">
-                  <B24FormField name="endTime" class="text-center">
-                    <B24InputTime
-                        :model-value="stringToTime(lunchForm.endTime)"
-                        @update:model-value="(val: Time | null) => lunchForm.endTime = timeToString(val)"
-                        :hour-cycle="24"
-                        size="xl"
-                        color="air-primary"
-                        highlight
-                        tag="Окончание"
-                    />
-                  </B24FormField>
-                </div>
-              </div>
-
-              <!-- Отображение длительности обеда -->
-              <div v-if="hasLunchSettings" class="mt-4 text-center">
-                <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
-                  <ClockIcon class="w-3 h-3" />
-                  {{ getLunchDuration }}
-                </span>
-              </div>
-              <div v-else class="mt-4 text-center text-xs text-gray-400">
-                Выберите время начала и окончания обеда
-              </div>
-
-              <!-- Кнопка сохранения -->
-              <div class="mt-4 flex justify-center">
-                <B24Button
-                    type="submit"
-                    size="md"
-                    variant="outline"
-                    color="air-primary"
-                    class="min-w-[120px]"
-                >
-                  <template #leading>
-                    <svg v-if="isSettingsSaved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </template>
-                  {{ isSettingsSaved ? 'Сохранено' : 'Сохранить настройки' }}
-                </B24Button>
-              </div>
-            </B24Form>
-          </div>
+        <!-- Настройки времени обеда - удалён внешний контейнер с заголовком -->
+        <!-- Индикатор загрузки настроек -->
+        <div v-if="isLoadingSettings" class="flex justify-center items-center py-4">
+          <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+          <span class="ml-2 text-sm text-gray-500">Загрузка настроек...</span>
         </div>
 
+        <B24Form
+            v-else
+            :schema="lunchSchema"
+            :state="lunchForm"
+            @submit="handleSaveLunchSettings"
+        >
+          <!-- Группированный блок времени -->
+          <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
+            <!-- Время начала -->
+            <div class="min-w-[120px]">
+              <B24FormField name="startTime" class="text-center">
+                <B24InputTime
+                    :model-value="stringToTime(lunchForm.startTime)"
+                    @update:model-value="(val: Time | null) => lunchForm.startTime = timeToString(val)"
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    highlight
+                    tag="Начало"
+                />
+              </B24FormField>
+            </div>
+
+            <!-- Разделитель -->
+            <div class="text-gray-400 font-medium text-lg">—</div>
+
+            <!-- Время окончания -->
+            <div class="min-w-[120px]">
+              <B24FormField name="endTime" class="text-center">
+                <B24InputTime
+                    :model-value="stringToTime(lunchForm.endTime)"
+                    @update:model-value="(val: Time | null) => lunchForm.endTime = timeToString(val)"
+                    :hour-cycle="24"
+                    size="xl"
+                    color="air-primary"
+                    highlight
+                    tag="Окончание"
+                />
+              </B24FormField>
+            </div>
+          </div>
+
+          <!-- Отображение длительности обеда -->
+          <div v-if="hasLunchSettings" class="mt-4 text-center">
+            <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+              <ClockIcon class="w-3 h-3" />
+              {{ getLunchDuration }}
+            </span>
+          </div>
+          <div v-else class="mt-4 text-center text-xs text-gray-400">
+            Выберите время начала и окончания обеда
+          </div>
+
+          <!-- Кнопка сохранения -->
+          <div class="mt-4 flex justify-center">
+            <B24Button
+                type="submit"
+                size="md"
+                variant="outline"
+                color="air-primary"
+                class="min-w-[120px]"
+            >
+              <template #leading>
+                <svg v-if="isSettingsSaved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+              </template>
+              {{ isSettingsSaved ? 'Сохранено' : 'Сохранить настройки' }}
+            </B24Button>
+          </div>
+        </B24Form>
+
         <!-- Кнопка действия -->
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 mt-6">
           <B24Button
               @click="handleMainAction"
               :disabled="isProcessing || isActionButtonDisabled"
