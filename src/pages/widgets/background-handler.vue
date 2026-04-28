@@ -105,18 +105,18 @@ function deleteCookie(name: string): void {
 // Сохранение индивидуального времени обеда пользователя
 function saveUserLunchTime(startTime: string | null, endTime: string | null): void {
   if (startTime) {
-    setCookie('user_lunch_start', startTime, 365)
+    setCookie('lunch_start_time', startTime, 365)
     userLunchTime.value.startTime = startTime
   } else {
-    deleteCookie('user_lunch_start')
+    deleteCookie('lunch_start_time')
     userLunchTime.value.startTime = null
   }
 
   if (endTime) {
-    setCookie('user_lunch_end', endTime, 365)
+    setCookie('lunch_end_time', endTime, 365)
     userLunchTime.value.endTime = endTime
   } else {
-    deleteCookie('user_lunch_end')
+    deleteCookie('lunch_end_time')
     userLunchTime.value.endTime = null
   }
 }
