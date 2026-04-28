@@ -712,10 +712,11 @@ onUnmounted(() => {
                 :state="lunchForm"
                 @submit="handleSaveLunchSettings"
             >
-              <!-- Группированный блок времени - выравнивание влево -->
+              <!-- Группированный блок времени  -->
+              <!-- Группированный блок времени  -->
               <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 <!-- Время начала -->
-                <div class="flex-1 min-w-[120px]">
+                <div>
                   <B24FormField name="startTime" label="Начало">
                     <B24InputTime
                         v-model="lunchForm.startTime"
@@ -731,7 +732,7 @@ onUnmounted(() => {
                 <div class="text-gray-400 font-medium text-lg">—</div>
 
                 <!-- Время окончания -->
-                <div class="flex-1 min-w-[120px]">
+                <div>
                   <B24FormField name="endTime" label="Окончание">
                     <B24InputTime
                         v-model="lunchForm.endTime"
