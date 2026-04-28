@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { markRaw } from 'vue'
 import ClockIcon from '@bitrix24/b24icons-vue/outline/ClockIcon'
 import CalculatorIcon from '@bitrix24/b24icons-vue/main/CalculatorIcon'
+import PowerIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 import ArrowToTheLeftIcon from '@bitrix24/b24icons-vue/actions/ArrowToTheLeftIcon'
 import ArrowToTheRightIcon from '@bitrix24/b24icons-vue/actions/ArrowToTheRightIcon'
 import MarketIcon from '@bitrix24/b24icons-vue/outline/MarketIcon'
@@ -80,7 +81,7 @@ const solutions: Solution[] = [
     id: 2,
     title: 'Удобное начало и завершение рабочего дня',
     description: 'Забываете начать рабочий день ? Больше не забудете.',
-    iconComponent: markRaw(CalculatorIcon),
+    iconComponent: markRaw(PowerIcon),
     color: 'bg-green-500',
     features: ['Автоматический контроль начала рабочего дня', 'Автоматический контроль завершения рабочего дня', 'Бесшовная интеграция с интерфейсом битрикс24', 'Гибкая настройка'],
     link: 'https://marketplace.bitrix24.ru/tekhnogalera.avtomaticheskoe_nachalo_i_zavershenie_rabochego_dnya/',
