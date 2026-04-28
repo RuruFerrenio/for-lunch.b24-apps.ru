@@ -713,7 +713,7 @@ onUnmounted(() => {
                 @submit="handleSaveLunchSettings"
             >
               <!-- Группированный блок времени -->
-              <div class="flex justify-center items-center gap-2 flex-wrap sm:flex-nowrap">
+              <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
                 <!-- Время начала -->
                 <div class="min-w-[120px]">
                   <B24FormField name="startTime" label="Начало" class="text-center">
