@@ -59,6 +59,7 @@ const lunchForm = reactive<LunchFormData>({
 })
 
 const isSettingsSaved = ref(false)
+const isLoadingSettings = ref(false)
 
 // Схема валидации формы
 const lunchSchema = v.object({
@@ -226,55 +227,82 @@ const getLunchDuration = computed(() => {
 })
 
 // ==========================================================================
-// РАБОТА С КУКИ
+// РАБОТА С USER.OPTION.SET/GET
 // ==========================================================================
 
-const setCookie = (name: string, value: string, days: number = 365) => {
-  if (typeof document === 'undefined') return
+/**
+ * Сохраняет настройки обеда через user.option.set
+ */
+const saveLunchSettingsToUserOptions = async (): Promise<boolean> => {
+  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') {
+    console.error('BX24 не загружен')
+    return false
+  }
 
-  const expires = new Date()
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
-  document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=None; Secure`
+  return new Promise((resolve) => {
+    const options: Record<string, string> = {}
+
+    if (lunchForm.startTime) {
+      options['lunch_start_time'] = lunchForm.startTime
+    } else {
+      options['lunch_start_time'] = ''
+    }
+
+    if (lunchForm.endTime) {
+      options['lunch_end_time'] = lunchForm.endTime
+    } else {
+      options['lunch_end_time'] = ''
+    }
+
+    BX24.callMethod('user.option.set', {
+      options: options
+    }, (result: any) => {
+      if (result.error()) {
+        console.error('Ошибка при сохранении настроек:', result.error())
+        resolve(false)
+      } else {
+        resolve(true)
+      }
+    })
+  })
 }
 
-const getCookie = (name: string): string | null => {
-  if (typeof document === 'undefined') return null
-
-  const nameEQ = `${name}=`
-  const ca = document.cookie.split(';')
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i]
-    while (c.charAt(0) === ' ') c = c.substring(1, c.length)
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length)
-  }
-  return null
-}
-
-const saveLunchSettingsToCookies = () => {
-  if (lunchForm.startTime) {
-    setCookie('lunch_start_time', lunchForm.startTime)
-  } else {
-    setCookie('lunch_start_time', '', 0)
+/**
+ * Загружает настройки обеда через user.option.get
+ */
+const loadLunchSettingsFromUserOptions = async (): Promise<void> => {
+  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') {
+    console.error('BX24 не загружен')
+    return
   }
 
-  if (lunchForm.endTime) {
-    setCookie('lunch_end_time', lunchForm.endTime)
-  } else {
-    setCookie('lunch_end_time', '', 0)
-  }
-}
+  isLoadingSettings.value = true
 
-const loadLunchSettingsFromCookies = () => {
-  const startTimeStr = getCookie('lunch_start_time')
-  const endTimeStr = getCookie('lunch_end_time')
+  return new Promise((resolve) => {
+    BX24.callMethod('user.option.get', {
+      names: ['lunch_start_time', 'lunch_end_time']
+    }, (result: any) => {
+      if (result.error()) {
+        console.error('Ошибка при загрузке настроек:', result.error())
+        isLoadingSettings.value = false
+        resolve()
+        return
+      }
 
-  if (startTimeStr && startTimeStr !== '') {
-    lunchForm.startTime = startTimeStr
-  }
+      const data = result.data()
 
-  if (endTimeStr && endTimeStr !== '') {
-    lunchForm.endTime = endTimeStr
-  }
+      if (data && data.lunch_start_time && data.lunch_start_time !== '') {
+        lunchForm.startTime = data.lunch_start_time
+      }
+
+      if (data && data.lunch_end_time && data.lunch_end_time !== '') {
+        lunchForm.endTime = data.lunch_end_time
+      }
+
+      isLoadingSettings.value = false
+      resolve()
+    })
+  })
 }
 
 // Преобразование строки времени в объект Time для B24InputTime
@@ -293,17 +321,25 @@ const timeToString = (time: Time | null): string | null => {
 }
 
 // Обработчик отправки формы
-const handleSaveLunchSettings = (event: FormSubmitEvent<LunchSchema>) => {
-  saveLunchSettingsToCookies()
-  isSettingsSaved.value = true
-  toast.add({
-    description: 'Настройки времени обеда сохранены',
-    variant: 'success'
-  })
+const handleSaveLunchSettings = async (event: FormSubmitEvent<LunchSchema>) => {
+  const success = await saveLunchSettingsToUserOptions()
 
-  setTimeout(() => {
-    isSettingsSaved.value = false
-  }, 2000)
+  if (success) {
+    isSettingsSaved.value = true
+    toast.add({
+      description: 'Настройки времени обеда сохранены',
+      variant: 'success'
+    })
+
+    setTimeout(() => {
+      isSettingsSaved.value = false
+    }, 2000)
+  } else {
+    toast.add({
+      description: 'Ошибка при сохранении настроек',
+      variant: 'error'
+    })
+  }
 }
 
 // ==========================================================================
@@ -583,10 +619,7 @@ const getUserPhoto = (user: UserProfile | null): string | null => {
   return user?.PERSONAL_PHOTO || null
 }
 
-onMounted(() => {
-  // Загружаем настройки обеда из куки
-  loadLunchSettingsFromCookies()
-
+onMounted(async () => {
   if (typeof BX24 !== 'undefined' && BX24.init) {
     BX24.init(async () => {
       isBitrixLoaded.value = true
@@ -597,13 +630,15 @@ onMounted(() => {
         return
       }
 
+      // Загружаем настройки обеда из user.options
+      await loadLunchSettingsFromUserOptions()
       await refreshData()
       startAutoRefresh()
     })
   } else if (typeof BX24 !== 'undefined') {
     isBitrixLoaded.value = true
 
-    checkTimemanAvailability().then((isAvailable) => {
+    checkTimemanAvailability().then(async (isAvailable) => {
       isTimemanAvailable.value = isAvailable
 
       if (!isAvailable) {
@@ -611,7 +646,9 @@ onMounted(() => {
         return
       }
 
-      refreshData()
+      // Загружаем настройки обеда из user.options
+      await loadLunchSettingsFromUserOptions()
+      await refreshData()
       startAutoRefresh()
     })
   } else {
@@ -745,7 +782,14 @@ onUnmounted(() => {
           </div>
 
           <div class="p-4">
+            <!-- Индикатор загрузки настроек -->
+            <div v-if="isLoadingSettings" class="flex justify-center items-center py-4">
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <span class="ml-2 text-sm text-gray-500">Загрузка настроек...</span>
+            </div>
+
             <B24Form
+                v-else
                 :schema="lunchSchema"
                 :state="lunchForm"
                 @submit="handleSaveLunchSettings"
