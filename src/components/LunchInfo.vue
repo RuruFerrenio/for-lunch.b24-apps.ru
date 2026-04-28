@@ -566,7 +566,7 @@ onUnmounted(() => {
               <div class="mt-4 flex justify-center">
                 <B24Button
                     type="submit"
-                    size="lg"
+                    size="md"
                     variant="outline"
                     color="air-primary"
                     class="min-w-[120px]"
