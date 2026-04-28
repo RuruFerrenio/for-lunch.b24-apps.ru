@@ -385,11 +385,8 @@ onUnmounted(() => {
         <CoffeeIcon class="w-8 h-8 md:w-10 md:h-10 text-blue-600" />
       </div>
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 md:mb-3 px-2">
-        Установка приложения "Умный обед"
+        Установка приложения "На обед!"
       </h1>
-      <p class="text-sm md:text-base text-gray-600 max-w-2xl mx-auto px-4">
-        Автоматизация управления обеденными перерывами сотрудников
-      </p>
     </div>
 
     <!-- Прогресс-бар -->
@@ -438,10 +435,6 @@ onUnmounted(() => {
                 <li class="flex items-start">
                   <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
                   <span class="text-sm md:text-base text-gray-700">Настройка времени обеда по умолчанию</span>
-                </li>
-                <li class="flex items-start">
-                  <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
-                  <span class="text-sm md:text-base text-gray-700">Учет активности в выходные дни</span>
                 </li>
               </ul>
             </div>
@@ -728,7 +721,7 @@ onUnmounted(() => {
                 </div>
 
                 <div class="mt-4">
-                  <B24Link href="mailto:technogalera@yandex.ru?subject=Поддержка приложения Умный обед" target="_blank" is-action>
+                  <B24Link href="mailto:technogalera@yandex.ru?subject=Поддержка приложения На обед!" target="_blank" is-action>
                     Техническая поддержка
                   </B24Link>
                 </div>

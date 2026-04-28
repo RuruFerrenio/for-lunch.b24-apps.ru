@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
-import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
-import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
-
+import CoffeeIcon from '@bitrix24/b24icons-vue/outline/CoffeeIcon'
+import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/BriefcaseIcon'
 
 type LunchMode = 'start' | 'end'
 type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
@@ -267,14 +266,13 @@ const resumeWorkday = async (): Promise<WorkdayInfo> => {
 
   const status = await getCurrentWorkdayStatus()
 
-  if (!status || status.STATUS !== 'PAUSED') {
+  // Если рабочий день на паузе - используем timeman.open для возобновления
+  // Если рабочий день закрыт - тоже используем timeman.open для начала нового дня
+  if (!status || (status.STATUS !== 'PAUSED' && status.STATUS !== 'CLOSED')) {
     if (status?.STATUS === 'OPENED') {
-      throw new Error('Рабочий день не на паузе')
+      throw new Error('Рабочий день уже активен')
     }
-    if (status?.STATUS === 'CLOSED') {
-      throw new Error('Рабочий день уже завершен. Сначала начните рабочий день')
-    }
-    throw new Error('Нельзя возобновить - рабочий день не на паузе')
+    throw new Error('Нельзя возобновить - рабочий день должен быть на паузе или закрыт')
   }
 
   const params: Record<string, any> = {}
@@ -283,8 +281,9 @@ const resumeWorkday = async (): Promise<WorkdayInfo> => {
     params.USER_ID = currentUser.value.id
   }
 
+  // timeman.open возобновляет рабочий день после паузы или начинает новый день
   const result = await new Promise<WorkdayInfo>((resolve, reject) => {
-    BX24.callMethod('timeman.resume', params, (result: any) => {
+    BX24.callMethod('timeman.open', params, (result: any) => {
       if (result.error()) {
         reject(result.error())
       } else {
@@ -360,6 +359,8 @@ const executeAction = async (): Promise<void> => {
       errorMessage = 'Пользователь не найден'
     } else if (bxError.error === 'METHOD_NOT_FOUND') {
       errorMessage = 'Метод timeman.pause не поддерживается версией Битрикс24'
+    } else if (bxError.error === 'WRONG_DATETIME') {
+      errorMessage = 'Некорректная дата открытия рабочего дня'
     }
 
     error.value = errorMessage
@@ -394,8 +395,9 @@ const initializeComponent = async (): Promise<void> => {
       }
 
       if (!isStartLunch.value && status.STATUS === 'CLOSED') {
-        error.value = 'Рабочий день не начат. Сначала начните рабочий день'
-        statusMessage.value = error.value
+        // Если рабочий день закрыт, показываем сообщение, но не блокируем действие
+        // timeman.open сможет начать новый рабочий день
+        statusMessage.value = 'Рабочий день не начат. Будет начат новый рабочий день'
       }
 
       if (isStartLunch.value && status.STATUS === 'CLOSED') {
