@@ -2,28 +2,10 @@
 import { ref, onMounted, onUnmounted, computed, reactive } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
 import { Time } from '@internationalized/date'
-import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
-import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 import ClockIcon from '@bitrix24/b24icons-vue/outline/ClockIcon'
-import CircleCheckIcon from '@bitrix24/b24icons-vue/outline/CircleCheckIcon'
-import InfoCircleIcon from '@bitrix24/b24icons-vue/main/InfoCircleIcon'
-import NoteCircleIcon from '@bitrix24/b24icons-vue/main/NoteCircleIcon'
 import RefreshIcon from '@bitrix24/b24icons-vue/outline/RefreshIcon'
-import RestaurantIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 import * as v from 'valibot'
 import type { FormSubmitEvent } from '@bitrix24/b24ui-nuxt'
-
-type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
-
-interface WorkdayInfo {
-  STATUS: WorkdayStatus
-  TIME_START?: string
-  TIME_FINISH?: string
-  TIME_PAUSED?: string
-  DURATION?: string
-  TIME_LEAKS?: string
-  [key: string]: any
-}
 
 interface UserProfile {
   ID: number
@@ -46,8 +28,6 @@ const toast = useToast()
 
 const isBitrixLoaded = ref(false)
 const isLoading = ref(true)
-const isProcessing = ref(false)
-const workdayInfo = ref<WorkdayInfo | null>(null)
 const currentUser = ref<UserProfile | null>(null)
 const error = ref<string | null>(null)
 const isRefreshing = ref(false)
@@ -83,96 +63,6 @@ let isPageVisible = true
 
 // Кэш профилей пользователей
 const userProfilesCache = ref<Record<number, UserProfile>>({})
-
-// Вычисляемые свойства для статуса
-const statusText = computed(() => {
-  if (!workdayInfo.value) return 'Неизвестно'
-
-  const statusMap: Record<WorkdayStatus, string> = {
-    'OPENED': 'Рабочий день активен',
-    'CLOSED': 'Рабочий день не начат',
-    'PAUSED': 'Обеденный перерыв',
-    'EXPIRED': 'Рабочий день истек'
-  }
-  return statusMap[workdayInfo.value.STATUS] || workdayInfo.value.STATUS
-})
-
-const statusIcon = computed(() => {
-  if (!workdayInfo.value) return InfoCircleIcon
-
-  const iconMap: Record<WorkdayStatus, any> = {
-    'OPENED': CircleCheckIcon,
-    'CLOSED': InfoCircleIcon,
-    'PAUSED': CoffeeIcon,
-    'EXPIRED': NoteCircleIcon
-  }
-  return iconMap[workdayInfo.value.STATUS] || InfoCircleIcon
-})
-
-const statusColor = computed(() => {
-  if (!workdayInfo.value) return 'text-gray-500'
-
-  const colorMap: Record<WorkdayStatus, string> = {
-    'OPENED': 'text-green-600',
-    'CLOSED': 'text-gray-500',
-    'PAUSED': 'text-blue-600',
-    'EXPIRED': 'text-red-600'
-  }
-  return colorMap[workdayInfo.value.STATUS] || 'text-gray-500'
-})
-
-const statusBgColor = computed(() => {
-  if (!workdayInfo.value) return 'bg-gray-100'
-
-  const colorMap: Record<WorkdayStatus, string> = {
-    'OPENED': 'bg-green-50 border-green-200',
-    'CLOSED': 'bg-gray-50 border-gray-200',
-    'PAUSED': 'bg-blue-50 border-blue-200',
-    'EXPIRED': 'bg-red-50 border-red-200'
-  }
-  return colorMap[workdayInfo.value.STATUS] || 'bg-gray-100 border-gray-200'
-})
-
-const statusChipColor = computed(() => {
-  if (!workdayInfo.value) return 'air-secondary-accent'
-
-  const colorMap: Record<WorkdayStatus, string> = {
-    'OPENED': 'air-primary-success',
-    'CLOSED': 'air-secondary-accent',
-    'PAUSED': 'air-primary',
-    'EXPIRED': 'air-primary-alert'
-  }
-  return colorMap[workdayInfo.value.STATUS] || 'air-secondary-accent'
-})
-
-const canPauseWorkday = computed(() => {
-  return workdayInfo.value && workdayInfo.value.STATUS === 'OPENED'
-})
-
-const canResumeWorkday = computed(() => {
-  return workdayInfo.value && (workdayInfo.value.STATUS === 'PAUSED' || workdayInfo.value.STATUS === 'CLOSED')
-})
-
-const buttonText = computed(() => {
-  if (canPauseWorkday.value) return 'На обед!'
-  if (canResumeWorkday.value) {
-    if (workdayInfo.value?.STATUS === 'CLOSED') return 'Начать день!'
-    return 'За работу!'
-  }
-  return 'Обед'
-})
-
-const buttonIcon = computed(() => {
-  if (canPauseWorkday.value) return CoffeeIcon
-  if (canResumeWorkday.value) return BriefcaseIcon
-  return RestaurantIcon
-})
-
-const buttonColor = computed(() => {
-  if (canPauseWorkday.value) return 'air-primary'
-  if (canResumeWorkday.value) return 'air-primary-success'
-  return 'air-secondary-accent'
-})
 
 // Показывать ли основной контент
 const showMainContent = computed(() => {
@@ -414,69 +304,6 @@ const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
   }
 }
 
-const getWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
-  if (!isTimemanAvailable.value) {
-    return null
-  }
-
-  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') {
-    return null
-  }
-
-  try {
-    const result = await new Promise<WorkdayInfo>((resolve, reject) => {
-      BX24.callMethod('timeman.status', {}, (result: any) => {
-        if (result.error()) {
-          reject(result.error())
-        } else {
-          resolve(result.data())
-        }
-      })
-    })
-    return result
-  } catch (err) {
-    error.value = 'Не удалось получить статус рабочего дня'
-    return null
-  }
-}
-
-const pauseWorkdayAPI = async (): Promise<void> => {
-  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
-  if (!isTimemanAvailable.value) {
-    throw new Error('Методы timeman недоступны')
-  }
-
-  return new Promise((resolve, reject) => {
-    BX24.callMethod('timeman.pause', {}, (result: any) => {
-      if (result.error()) {
-        reject(result.error())
-      } else {
-        resolve(result.data())
-      }
-    })
-  })
-}
-
-// Используем timeman.open вместо timeman.resume
-// timeman.open возобновляет рабочий день после паузы или начинает новый день
-const resumeWorkdayAPI = async (): Promise<void> => {
-  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
-  if (!isTimemanAvailable.value) {
-    throw new Error('Методы timeman недоступны')
-  }
-
-  return new Promise((resolve, reject) => {
-    // timeman.open - работает как для возобновления после паузы, так и для начала нового дня
-    BX24.callMethod('timeman.open', {}, (result: any) => {
-      if (result.error()) {
-        reject(result.error())
-      } else {
-        resolve(result.data())
-      }
-    })
-  })
-}
-
 // ==========================================================================
 // ОСНОВНЫЕ ДЕЙСТВИЯ
 // ==========================================================================
@@ -488,96 +315,14 @@ const refreshData = async () => {
   isRefreshing.value = true
 
   try {
-    const [user, status] = await Promise.all([
-      getCurrentUserProfile(),
-      getWorkdayStatus()
-    ])
-
+    const user = await getCurrentUserProfile()
     if (user) currentUser.value = user
-    if (status) workdayInfo.value = status
-
     error.value = null
   } catch (err) {
     error.value = 'Ошибка при обновлении данных'
   } finally {
     isRefreshing.value = false
     isLoading.value = false
-  }
-}
-
-const handlePauseWorkday = async () => {
-  if (isProcessing.value) return
-  if (isTimemanAvailable.value === false) {
-    toast.add({
-      description: 'Функция недоступна на вашем тарифе. Требуется тариф "Профессиональный"',
-      variant: 'error'
-    })
-    return
-  }
-
-  isProcessing.value = true
-  error.value = null
-
-  try {
-    await pauseWorkdayAPI()
-    toast.add({
-      description: 'Обеденный перерыв начался. Приятного аппетита! 🍽️',
-      variant: 'success'
-    })
-    await refreshData()
-  } catch (err: any) {
-    const errorMessage = err.error_description || err.message || 'Ошибка при начале обеда'
-    error.value = errorMessage
-    toast.add({
-      description: errorMessage,
-      variant: 'error'
-    })
-  } finally {
-    isProcessing.value = false
-  }
-}
-
-const handleResumeWorkday = async () => {
-  if (isProcessing.value) return
-  if (isTimemanAvailable.value === false) {
-    toast.add({
-      description: 'Функция недоступна на вашем тарифе. Требуется тариф "Профессиональный"',
-      variant: 'error'
-    })
-    return
-  }
-
-  isProcessing.value = true
-  error.value = null
-
-  try {
-    await resumeWorkdayAPI()
-    const wasClosed = workdayInfo.value?.STATUS === 'CLOSED'
-    const toastMessage = wasClosed
-        ? 'Рабочий день начат! Хорошей работы! 💼'
-        : 'Обеденный перерыв завершен. Добро пожаловать обратно! 💪'
-    toast.add({
-      description: toastMessage,
-      variant: 'success'
-    })
-    await refreshData()
-  } catch (err: any) {
-    const errorMessage = err.error_description || err.message || 'Ошибка при возобновлении рабочего дня'
-    error.value = errorMessage
-    toast.add({
-      description: errorMessage,
-      variant: 'error'
-    })
-  } finally {
-    isProcessing.value = false
-  }
-}
-
-const handleMainAction = () => {
-  if (canPauseWorkday.value) {
-    handlePauseWorkday()
-  } else if (canResumeWorkday.value) {
-    handleResumeWorkday()
   }
 }
 
@@ -688,7 +433,7 @@ onUnmounted(() => {
         />
         <div v-else-if="!showUnavailableMessage" class="flex items-center gap-3">
           <div class="p-2 bg-blue-100 rounded-full">
-            <RestaurantIcon class="w-5 h-5 text-blue-600" />
+            <ClockIcon class="w-5 h-5 text-blue-600" />
           </div>
           <span class="font-medium text-gray-700">Загрузка...</span>
         </div>
@@ -748,32 +493,8 @@ onUnmounted(() => {
 
       <!-- Данные -->
       <div v-else-if="showMainContent">
-        <!-- Статус -->
-        <div class="mb-6">
-          <div
-              class="flex items-center gap-3 p-3 rounded-lg border"
-              :class="statusBgColor"
-          >
-            <div class="p-1 rounded-full bg-white/50">
-              <component :is="statusIcon" class="w-5 h-5" :class="statusColor" />
-            </div>
-            <div class="flex-1">
-              <span class="font-medium" :class="statusColor">{{ statusText }}</span>
-            </div>
-            <B24Badge
-                :color="statusChipColor"
-                size="sm"
-                variant="soft"
-            >
-              {{ workdayInfo?.STATUS === 'OPENED' ? 'В работе' :
-                workdayInfo?.STATUS === 'PAUSED' ? 'На обеде' :
-                    workdayInfo?.STATUS === 'EXPIRED' ? 'Просрочен' : 'Ожидание' }}
-            </B24Badge>
-          </div>
-        </div>
-
         <!-- Настройки времени обеда - с использованием Form -->
-        <div class="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div class="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
             <h3 class="text-sm font-medium text-gray-700 flex items-center gap-2">
               <ClockIcon class="w-4 h-4 text-amber-600" />
@@ -834,7 +555,7 @@ onUnmounted(() => {
               <div v-if="hasLunchSettings" class="mt-4 text-center">
                 <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
                   <ClockIcon class="w-3 h-3" />
-                  {{ getLunchDuration }}
+                  Длительность: {{ getLunchDuration }}
                 </span>
               </div>
               <div v-else class="mt-4 text-center text-xs text-gray-400">
@@ -859,31 +580,6 @@ onUnmounted(() => {
                 </B24Button>
               </div>
             </B24Form>
-          </div>
-        </div>
-
-        <!-- Кнопка действия -->
-        <div class="flex flex-col gap-2">
-          <B24Button
-              v-if="canPauseWorkday || canResumeWorkday"
-              @click="handleMainAction"
-              :disabled="isProcessing"
-              :color="buttonColor"
-              size="lg"
-              class="w-full"
-          >
-            <template #leading>
-              <svg v-if="isProcessing" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-              </svg>
-              <component :is="buttonIcon" v-else class="w-4 h-4" />
-            </template>
-            {{ isProcessing ? 'Обработка...' : buttonText }}
-          </B24Button>
-
-          <div v-else class="text-center text-sm text-gray-400 py-2">
-            {{ workdayInfo?.STATUS === 'CLOSED' ? 'Сначала начните рабочий день' : '' }}
-            {{ workdayInfo?.STATUS === 'EXPIRED' ? 'Рабочий день истек, обратитесь к руководителю' : '' }}
           </div>
         </div>
       </div>
