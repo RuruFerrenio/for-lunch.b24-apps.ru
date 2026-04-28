@@ -715,7 +715,7 @@ onUnmounted(() => {
               <!-- Группированный блок времени -->
               <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 <!-- Время начала -->
-                <div class="min-w-[120px]">
+                <div class="flex-1 min-w-[120px]">
                   <B24FormField name="startTime" label="Начало" class="text-center">
                     <B24InputTime
                         v-model="lunchForm.startTime"
@@ -731,7 +731,7 @@ onUnmounted(() => {
                 <div class="text-gray-400 font-medium text-lg">—</div>
 
                 <!-- Время окончания -->
-                <div class="min-w-[120px]">
+                <div class="flex-1 min-w-[120px]">
                   <B24FormField name="endTime" label="Окончание" class="text-center">
                     <B24InputTime
                         v-model="lunchForm.endTime"
