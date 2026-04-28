@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, computed, reactive, watch } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
 import { Time } from '@internationalized/date'
 import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
@@ -59,6 +59,7 @@ const lunchForm = reactive<LunchFormData>({
 })
 
 const isSettingsSaved = ref(false)
+let saveTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Схема валидации формы
 const lunchSchema = v.object({
@@ -246,6 +247,41 @@ const loadLunchSettingsFromCookies = () => {
   }
 }
 
+// Автоматическое сохранение при изменении значений
+const autoSaveSettings = () => {
+  // Показываем индикатор сохранения
+  isSettingsSaved.value = true
+
+  // Сохраняем в куки
+  saveLunchSettingsToCookies()
+
+  // Показываем уведомление
+  toast.add({
+    description: 'Настройки времени обеда сохранены',
+    variant: 'success'
+  })
+
+  // Скрываем индикатор через 2 секунды
+  if (saveTimeout) {
+    clearTimeout(saveTimeout)
+  }
+  saveTimeout = setTimeout(() => {
+    isSettingsSaved.value = false
+  }, 2000)
+}
+
+// Следим за изменениями полей ввода
+watch(
+    () => [lunchForm.startTime, lunchForm.endTime],
+    ([newStart, newEnd], [oldStart, oldEnd]) => {
+      // Сохраняем только если оба поля заполнены
+      if (newStart && newEnd) {
+        autoSaveSettings()
+      }
+    },
+    { deep: true }
+)
+
 // Преобразование строки времени в объект Time для B24InputTime
 const stringToTime = (timeStr: string | null): Time | null => {
   if (!timeStr) return null
@@ -259,20 +295,6 @@ const stringToTime = (timeStr: string | null): Time | null => {
 const timeToString = (time: Time | null): string | null => {
   if (!time) return null
   return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
-}
-
-// Обработчик отправки формы
-const handleSaveLunchSettings = (event: FormSubmitEvent<LunchSchema>) => {
-  saveLunchSettingsToCookies()
-  isSettingsSaved.value = true
-  toast.add({
-    description: 'Настройки времени обеда сохранены',
-    variant: 'success'
-  })
-
-  setTimeout(() => {
-    isSettingsSaved.value = false
-  }, 2000)
 }
 
 // ==========================================================================
@@ -587,6 +609,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (refreshInterval) clearInterval(refreshInterval)
+  if (saveTimeout) clearTimeout(saveTimeout)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
@@ -697,12 +720,13 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Настройки времени обеда - с использованием Form -->
+        <!-- Настройки времени обеда - автосохранение -->
         <div class="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div class="px-4 py-3 bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
             <h3 class="text-sm font-medium text-gray-700 flex items-center gap-2">
               <ClockIcon class="w-4 h-4 text-amber-600" />
               Настройки времени обеда
+              <span v-if="isSettingsSaved" class="ml-2 text-xs text-green-600 animate-fade-in">✓ Сохранено</span>
             </h3>
           </div>
 
@@ -710,7 +734,6 @@ onUnmounted(() => {
             <B24Form
                 :schema="lunchSchema"
                 :state="lunchForm"
-                @submit="handleSaveLunchSettings"
             >
               <!-- Группированный блок времени -->
               <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
@@ -756,24 +779,6 @@ onUnmounted(() => {
               <div v-else class="mt-4 text-center text-xs text-gray-400">
                 Выберите время начала и окончания обеда
               </div>
-
-              <!-- Кнопка сохранения -->
-              <div class="mt-4 flex justify-center">
-                <B24Button
-                    type="submit"
-                    size="sm"
-                    variant="outline"
-                    color="air-primary"
-                    class="min-w-[120px]"
-                >
-                  <template #leading>
-                    <svg v-if="isSettingsSaved" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </template>
-                  {{ isSettingsSaved ? 'Сохранено' : 'Сохранить настройки' }}
-                </B24Button>
-              </div>
             </B24Form>
           </div>
         </div>
@@ -812,12 +817,27 @@ onUnmounted(() => {
   animation: spin 1s linear infinite;
 }
 
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 </style>
