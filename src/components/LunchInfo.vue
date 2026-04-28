@@ -728,7 +728,8 @@ onUnmounted(() => {
                 <div class="min-w-[120px]">
                   <B24FormField name="startTime" class="text-center">
                     <B24InputTime
-                        v-model="lunchForm.startTime"
+                        :model-value="stringToTime(lunchForm.startTime)"
+                        @update:model-value="(val: Time | null) => lunchForm.startTime = timeToString(val)"
                         :hour-cycle="24"
                         size="xl"
                         color="air-primary"
@@ -745,7 +746,8 @@ onUnmounted(() => {
                 <div class="min-w-[120px]">
                   <B24FormField name="endTime" class="text-center">
                     <B24InputTime
-                        v-model="lunchForm.endTime"
+                        :model-value="stringToTime(lunchForm.endTime)"
+                        @update:model-value="(val: Time | null) => lunchForm.endTime = timeToString(val)"
                         :hour-cycle="24"
                         size="xl"
                         color="air-primary"
