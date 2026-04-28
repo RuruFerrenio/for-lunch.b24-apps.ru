@@ -123,8 +123,8 @@ function saveUserLunchTime(startTime: string | null, endTime: string | null): vo
 
 // Загрузка индивидуального времени обеда пользователя
 function loadUserLunchTime(): void {
-  const startTime = getCookie('user_lunch_start')
-  const endTime = getCookie('user_lunch_end')
+  const startTime = getCookie('lunch_start_time')
+  const endTime = getCookie('lunch_end_time')
 
   userLunchTime.value.startTime = startTime
   userLunchTime.value.endTime = endTime
