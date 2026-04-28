@@ -84,6 +84,31 @@ const formattedDefaultLunchEnd = computed(() => {
   return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
 })
 
+// Вычисляемая длительность обеда
+const getLunchDuration = computed(() => {
+  const start = formData.value.defaultLunchTime.startTime
+  const end = formData.value.defaultLunchTime.endTime
+
+  if (!start || !end) return '—'
+
+  let totalMinutes = (end.hour * 60 + end.minute) - (start.hour * 60 + start.minute)
+
+  if (totalMinutes < 0) {
+    totalMinutes += 24 * 60
+  }
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours === 0) {
+    return `${minutes} мин`
+  } else if (minutes === 0) {
+    return `${hours} ч`
+  } else {
+    return `${hours} ч ${minutes} мин`
+  }
+})
+
 // Функции для уведомлений
 function showNotification(type: 'success' | 'error' | 'warning' | 'info', message: string): void {
   if (typeof toast !== 'undefined') {
@@ -269,18 +294,11 @@ async function loadSettings(): Promise<void> {
 
   try {
     const [
-      // Настройки активности в выходные
       weekendActivityEnabled,
-
-      // Настройки общего времени обеда
       lunchDefaultStartTime,
       lunchDefaultEndTime,
-
-      // Настройки начала обеда
       lunchStartEnabled,
       lunchStartMethod,
-
-      // Настройки завершения обеда
       lunchEndEnabled,
       lunchEndMethod
     ] = await Promise.all([
@@ -348,238 +366,193 @@ watch(() => formData.value.lunchEnd.method, () => {
 </script>
 
 <template>
-  <div>
+  <div class="space-y-6">
     <!-- Блок 1: Активность в выходные -->
-    <B24Card class="mb-8">
-      <div class="p-0 md:p-6">
-        <div class="space-y-6">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900">
-                Активность в выходные
-              </h3>
-              <p class="text-sm text-gray-500 mt-1">
-                Разрешить работу приложения для управления обедом в выходные дни
-              </p>
-            </div>
-            <div class="ml-4 flex items-center space-x-4">
-              <div class="w-2 h-2 rounded-full"
-                   :class="formData.weekendActivity.enabled ? 'bg-green-500' : 'bg-red-500'"></div>
-              <B24Switch
-                  :model-value="formData.weekendActivity.enabled"
-                  @update:model-value="toggleWeekendActivity"
-                  :disabled="isProcessing"
-              />
-            </div>
+    <B24Card class="overflow-hidden">
+      <div class="p-6">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-gray-900">
+              Активность в выходные
+            </h3>
+            <p class="text-sm text-gray-500 mt-1">
+              Разрешить работу приложения для управления обедом в выходные дни
+            </p>
+          </div>
+          <div class="ml-4 flex items-center space-x-4">
+            <div class="w-2 h-2 rounded-full"
+                 :class="formData.weekendActivity.enabled ? 'bg-green-500' : 'bg-red-500'"></div>
+            <B24Switch
+                :model-value="formData.weekendActivity.enabled"
+                @update:model-value="toggleWeekendActivity"
+                :disabled="isProcessing"
+            />
           </div>
         </div>
       </div>
     </B24Card>
 
-    <!-- Блок 2: Настройки времени обеда -->
-    <B24Card class="mb-8">
-      <div class="p-0 md:p-6">
-        <div class="space-y-6">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900">
-                Общее время обеда
-              </h3>
-              <p class="text-sm text-gray-500 mt-1">
-                Настройка времени обеда по умолчанию для всех сотрудников
-              </p>
+    <!-- Блок 2: Настройки времени обеда (НОВЫЙ ДИЗАЙН) -->
+    <B24Card class="overflow-hidden">
+      <div class="p-6">
+        <div class="mb-6">
+          <h3 class="text-lg font-semibold text-gray-900">
+            Время обеда по умолчанию
+          </h3>
+          <p class="text-sm text-gray-500 mt-1">
+            Настройка времени обеда для всех сотрудников
+          </p>
+        </div>
+
+        <!-- Визуальный индикатор времени -->
+        <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
+          <div class="flex items-center justify-between flex-wrap gap-4">
+            <div class="flex-1 text-center">
+              <div class="text-xs text-gray-500 mb-1">Начало обеда</div>
+              <div class="text-2xl font-bold text-gray-900">
+                {{ formattedDefaultLunchStart }}
+              </div>
+            </div>
+            <div class="text-gray-400 text-xl">→</div>
+            <div class="flex-1 text-center">
+              <div class="text-xs text-gray-500 mb-1">Окончание обеда</div>
+              <div class="text-2xl font-bold text-gray-900">
+                {{ formattedDefaultLunchEnd }}
+              </div>
+            </div>
+            <div class="flex-1 text-center">
+              <div class="text-xs text-gray-500 mb-1">Длительность</div>
+              <div class="text-lg font-semibold text-blue-600">
+                {{ getLunchDuration }}
+              </div>
             </div>
           </div>
+        </div>
 
-          <div class="space-y-4 pt-4 border-t">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <B24InputTime
-                    v-model="formData.defaultLunchTime.startTime"
-                    :hour-cycle="24"
-                    size="xl"
-                    color="air-primary"
-                    tag="Время начала обеда"
-                    highlight
-                />
-              </div>
-              <div>
-                <B24InputTime
-                    v-model="formData.defaultLunchTime.endTime"
-                    :hour-cycle="24"
-                    size="xl"
-                    color="air-primary"
-                    tag="Время завершения обеда"
-                    highlight
-                />
-              </div>
-            </div>
+        <!-- Ползунки времени -->
+        <div class="space-y-6 mb-6">
+          <div>
+            <B24TimeSlider
+                v-model="formData.defaultLunchTime.startTime"
+                label="Начало обеда"
+                :hour-cycle="24"
+                step-minutes="15"
+                size="md"
+                show-time-label
+            />
+          </div>
+          <div>
+            <B24TimeSlider
+                v-model="formData.defaultLunchTime.endTime"
+                label="Окончание обеда"
+                :hour-cycle="24"
+                step-minutes="15"
+                size="md"
+                show-time-label
+            />
+          </div>
+        </div>
 
-            <div class="flex items-center justify-between">
-              <div class="text-xs text-gray-400">
-                ⏰ Обед с {{ formattedDefaultLunchStart }} до {{ formattedDefaultLunchEnd }}
-              </div>
-              <B24Button
-                  @click="saveDefaultLunchTimeSettings"
-                  :disabled="isProcessing"
-                  size="sm"
-                  variant="outline"
-                  color="air-primary"
-              >
-                Сохранить время обеда
-              </B24Button>
-            </div>
-
-            <div class="flex items-start mt-2 p-3 bg-blue-50 rounded-lg">
-              <svg class="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        <!-- Кнопка сохранения -->
+        <div class="flex items-center justify-between pt-4 border-t">
+          <div class="flex items-center text-sm text-gray-500">
+            <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>Используется для автоматических напоминаний</span>
+          </div>
+          <B24Button
+              @click="saveDefaultLunchTimeSettings"
+              :disabled="isProcessing"
+              size="md"
+              variant="outline"
+              color="air-primary"
+          >
+            <template #leading>
+              <svg v-if="!isProcessing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
               </svg>
-              <div class="text-sm text-blue-700">
-                <span class="font-medium">Время обеда по умолчанию:</span> используется для автоматических напоминаний и проверок
-              </div>
-            </div>
-          </div>
+              <div v-else class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            </template>
+            Сохранить
+          </B24Button>
         </div>
       </div>
     </B24Card>
 
     <!-- Блок 3: Помощь в начале обеда -->
-    <B24Card class="mb-8">
-      <div class="p-0 md:p-6">
-        <div class="space-y-6">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900">
-                Помощь в начале обеда
-              </h3>
-              <p class="text-sm text-gray-500 mt-1">
-                Автоматическая помощь сотрудникам в своевременном начале обеденного перерыва
-              </p>
-            </div>
-            <div class="ml-4 flex items-center space-x-4">
-              <div class="w-2 h-2 rounded-full"
-                   :class="formData.lunchStart.enabled ? 'bg-green-500' : 'bg-red-500'"></div>
-              <B24Switch
-                  :model-value="formData.lunchStart.enabled"
-                  @update:model-value="toggleLunchStart"
-                  :disabled="isProcessing"
-              />
-            </div>
+    <B24Card class="overflow-hidden">
+      <div class="p-6">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-gray-900">
+              Помощь в начале обеда
+            </h3>
+            <p class="text-sm text-gray-500 mt-1">
+              Автоматическая помощь сотрудникам в своевременном начале обеденного перерыва
+            </p>
           </div>
+          <div class="ml-4 flex items-center space-x-4">
+            <div class="w-2 h-2 rounded-full"
+                 :class="formData.lunchStart.enabled ? 'bg-green-500' : 'bg-red-500'"></div>
+            <B24Switch
+                :model-value="formData.lunchStart.enabled"
+                @update:model-value="toggleLunchStart"
+                :disabled="isProcessing"
+            />
+          </div>
+        </div>
 
-          <!-- Настройки помощи в начале обеда -->
-          <div v-if="formData.lunchStart.enabled" class="space-y-4 pt-4 border-t">
-            <B24Form
-                :state="formData"
-                class="space-y-4"
-                @submit="saveLunchStartSettings"
+        <!-- Настройки помощи в начале обеда -->
+        <div v-if="formData.lunchStart.enabled" class="mt-6 pt-6 border-t">
+          <B24Form
+              :state="formData"
+              class="space-y-4"
+              @submit="saveLunchStartSettings"
+          >
+            <B24FormField
+                label="Способ начала обеда"
+                name="lunchStartMethod"
+                :help-text="`Текущий способ: ${getLunchStartMethodText}`"
             >
-              <!-- Способ начала обеда -->
-              <B24FormField
-                  label="Способ начала обеда"
-                  name="lunchStartMethod"
-                  :help-text="`Текущий способ: ${getLunchStartMethodText}`"
-              >
-                <B24RadioGroup
-                    :model-value="formData.lunchStart.method"
-                    @update:model-value="(val) => formData.lunchStart.method = val"
-                    :disabled="isProcessing"
-                    :items="[
-                        {
-                            label: 'Автоматическое начало обеда',
-                            value: 'auto',
-                            description: 'Обеденный перерыв начинается автоматически в установленное время'
-                        },
-                        {
-                            label: 'Модальное окно с предложением',
-                            value: 'modal',
-                            description: 'Показывать окно с предложением начать обед'
-                        },
-                        {
-                            label: 'Сообщение в чате',
-                            value: 'chat',
-                            description: 'Отправлять уведомление в чат Б24'
-                        },
-                        {
-                            label: 'Push-уведомление',
-                            value: 'push',
-                            description: 'Отправлять push-уведомление'
-                        }
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div
+                    v-for="item in [
+                        { label: 'Автоматически', value: 'auto', icon: '⚡', description: 'Автоматическое начало обеда' },
+                        { label: 'Модальное окно', value: 'modal', icon: '🪟', description: 'Показывать окно с предложением' },
+                        { label: 'Сообщение в чате', value: 'chat', icon: '💬', description: 'Отправлять в чат Б24' },
+                        { label: 'Push-уведомление', value: 'push', icon: '📱', description: 'Push-уведомление' }
                     ]"
-                    orientation="horizontal"
-                    variant="card"
-                    size="sm"
-                    default-value="modal"
-                    indicator="end"
-                    class="overflow-scroll md:overflow-auto"
-                />
-              </B24FormField>
-            </B24Form>
+                    :key="item.value"
+                    class="relative"
+                >
+                  <input
+                      type="radio"
+                      :id="`start-method-${item.value}`"
+                      :value="item.value"
+                      v-model="formData.lunchStart.method"
+                      class="sr-only peer"
+                  />
+                  <label
+                      :for="`start-method-${item.value}`"
+                      class="flex flex-col items-center p-4 bg-white border-2 rounded-xl cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:border-blue-300"
+                  >
+                    <span class="text-2xl mb-2">{{ item.icon }}</span>
+                    <span class="font-medium text-gray-900 text-sm">{{ item.label }}</span>
+                    <span class="text-xs text-gray-500 mt-1 text-center">{{ item.description }}</span>
+                  </label>
+                </div>
+              </div>
+            </B24FormField>
+          </B24Form>
 
-            <!-- Информация о системе помощи в начале обеда -->
-            <div class="space-y-4 mt-6">
-              <h4 class="text-sm font-medium text-gray-900">
-                Как работает помощь в начале обеда
-              </h4>
-              <div class="space-y-3">
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">1</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      Система отслеживает текущее время и статус рабочего дня сотрудника.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">2</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Автоматическое начало обеда:</span> обеденный перерыв начинается автоматически без участия сотрудника.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">3</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Модальное окно:</span> показывается окно с кнопкой "На обед!", пока сотрудник не начнет перерыв.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">4</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Сообщение в чате:</span> в чат Битрикс24 отправляется уведомление с предложением начать обед.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">5</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Push-уведомление:</span> сотруднику отправляется push-уведомление в Битрикс24.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start mt-2 p-3 bg-yellow-50 rounded-lg">
-                  <svg class="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                  </svg>
-                  <div class="text-sm text-yellow-700">
-                    <span class="font-medium">Функция доступна на тарифах "Профессиональный" и выше.</span>
-                  </div>
-                </div>
+          <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+            <div class="flex items-start">
+              <svg class="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="text-sm text-blue-700">
+                <span class="font-medium">Функция доступна на тарифах "Профессиональный" и выше.</span>
               </div>
             </div>
           </div>
@@ -588,142 +561,78 @@ watch(() => formData.value.lunchEnd.method, () => {
     </B24Card>
 
     <!-- Блок 4: Помощь в завершении обеда -->
-    <B24Card class="mb-8">
-      <div class="p-0 md:p-6">
-        <div class="space-y-6">
-          <div class="flex items-center justify-between">
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900">
-                Помощь в завершении обеда
-              </h3>
-              <p class="text-sm text-gray-500 mt-1">
-                Автоматическая помощь сотрудникам в своевременном завершении обеденного перерыва
-              </p>
-            </div>
-            <div class="ml-4 flex items-center space-x-4">
-              <div class="w-2 h-2 rounded-full"
-                   :class="formData.lunchEnd.enabled ? 'bg-green-500' : 'bg-red-500'"></div>
-              <B24Switch
-                  :model-value="formData.lunchEnd.enabled"
-                  @update:model-value="toggleLunchEnd"
-                  :disabled="isProcessing"
-              />
-            </div>
+    <B24Card class="overflow-hidden">
+      <div class="p-6">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <h3 class="text-lg font-semibold text-gray-900">
+              Помощь в завершении обеда
+            </h3>
+            <p class="text-sm text-gray-500 mt-1">
+              Автоматическая помощь сотрудникам в своевременном завершении обеденного перерыва
+            </p>
           </div>
+          <div class="ml-4 flex items-center space-x-4">
+            <div class="w-2 h-2 rounded-full"
+                 :class="formData.lunchEnd.enabled ? 'bg-green-500' : 'bg-red-500'"></div>
+            <B24Switch
+                :model-value="formData.lunchEnd.enabled"
+                @update:model-value="toggleLunchEnd"
+                :disabled="isProcessing"
+            />
+          </div>
+        </div>
 
-          <!-- Настройки помощи в завершении обеда -->
-          <div v-if="formData.lunchEnd.enabled" class="space-y-4 pt-4 border-t">
-            <B24Form
-                :state="formData"
-                class="space-y-4"
-                @submit="saveLunchEndSettings"
+        <!-- Настройки помощи в завершении обеда -->
+        <div v-if="formData.lunchEnd.enabled" class="mt-6 pt-6 border-t">
+          <B24Form
+              :state="formData"
+              class="space-y-4"
+              @submit="saveLunchEndSettings"
+          >
+            <B24FormField
+                label="Способ завершения обеда"
+                name="lunchEndMethod"
+                :help-text="`Текущий способ: ${getLunchEndMethodText}`"
             >
-              <!-- Способ завершения обеда -->
-              <B24FormField
-                  label="Способ завершения обеда"
-                  name="lunchEndMethod"
-                  :help-text="`Текущий способ: ${getLunchEndMethodText}`"
-              >
-                <B24RadioGroup
-                    :model-value="formData.lunchEnd.method"
-                    @update:model-value="(val) => formData.lunchEnd.method = val"
-                    :disabled="isProcessing"
-                    :items="[
-                        {
-                            label: 'Автоматическое завершение обеда',
-                            value: 'auto',
-                            description: 'Обеденный перерыв завершается автоматически в установленное время'
-                        },
-                        {
-                            label: 'Модальное окно с предложением',
-                            value: 'modal',
-                            description: 'Показывать окно с предложением завершить обед'
-                        },
-                        {
-                            label: 'Сообщение в чате',
-                            value: 'chat',
-                            description: 'Отправлять уведомление в чат Б24'
-                        },
-                        {
-                            label: 'Push-уведомление',
-                            value: 'push',
-                            description: 'Отправлять push-уведомление'
-                        }
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div
+                    v-for="item in [
+                        { label: 'Автоматически', value: 'auto', icon: '⚡', description: 'Автоматическое завершение обеда' },
+                        { label: 'Модальное окно', value: 'modal', icon: '🪟', description: 'Показывать окно с предложением' },
+                        { label: 'Сообщение в чате', value: 'chat', icon: '💬', description: 'Отправлять в чат Б24' },
+                        { label: 'Push-уведомление', value: 'push', icon: '📱', description: 'Push-уведомление' }
                     ]"
-                    orientation="horizontal"
-                    variant="card"
-                    size="sm"
-                    default-value="modal"
-                    indicator="end"
-                    class="overflow-scroll md:overflow-auto"
-                />
-              </B24FormField>
-            </B24Form>
+                    :key="item.value"
+                    class="relative"
+                >
+                  <input
+                      type="radio"
+                      :id="`end-method-${item.value}`"
+                      :value="item.value"
+                      v-model="formData.lunchEnd.method"
+                      class="sr-only peer"
+                  />
+                  <label
+                      :for="`end-method-${item.value}`"
+                      class="flex flex-col items-center p-4 bg-white border-2 rounded-xl cursor-pointer transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:border-blue-300"
+                  >
+                    <span class="text-2xl mb-2">{{ item.icon }}</span>
+                    <span class="font-medium text-gray-900 text-sm">{{ item.label }}</span>
+                    <span class="text-xs text-gray-500 mt-1 text-center">{{ item.description }}</span>
+                  </label>
+                </div>
+              </div>
+            </B24FormField>
+          </B24Form>
 
-            <!-- Информация о системе помощи в завершении обеда -->
-            <div class="space-y-4 mt-6">
-              <h4 class="text-sm font-medium text-gray-900">
-                Как работает помощь в завершении обеда
-              </h4>
-              <div class="space-y-3">
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">1</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      Система отслеживает текущее время и статус обеденного перерыва сотрудника.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">2</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Автоматическое завершение обеда:</span> обеденный перерыв завершается автоматически без участия сотрудника.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">3</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Модальное окно:</span> показывается окно с кнопкой "За работу!", пока сотрудник не завершит обед.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">4</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Сообщение в чате:</span> в чат Битрикс24 отправляется уведомление с предложением завершить обед.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">5</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
-                      <span class="font-medium">Push-уведомление:</span> сотруднику отправляется push-уведомление в Битрикс24.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start mt-2 p-3 bg-yellow-50 rounded-lg">
-                  <svg class="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.346 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                  </svg>
-                  <div class="text-sm text-yellow-700">
-                    <span class="font-medium">Функция доступна на тарифах "Профессиональный" и выше.</span>
-                  </div>
-                </div>
+          <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+            <div class="flex items-start">
+              <svg class="w-5 h-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="text-sm text-blue-700">
+                <span class="font-medium">Функция доступна на тарифах "Профессиональный" и выше.</span>
               </div>
             </div>
           </div>
