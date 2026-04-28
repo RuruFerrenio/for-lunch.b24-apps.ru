@@ -46,17 +46,19 @@ const getVisibleFeatures = (solutionId: number) => {
   }
 }
 
-// Функция для открытия отзыва
-const handleReview = (): void => {
+// Функция для открытия ссылки решения
+const handleReview = (link: string): void => {
   if (typeof (window as any).BX24 !== 'undefined') {
     (window as any).BX24.init(() => {
       (window as any).BX24.openPath(
-          '/marketplace/detail/tekhnogalera.chistoe_vremya/',
+          link,
           function(result: any) {
           }
       );
     });
   } else {
+    // Fallback если BX24 не доступен
+    window.open(link, '_blank');
   }
 };
 
@@ -69,23 +71,23 @@ const solutions: Solution[] = [
     iconComponent: markRaw(ClockIcon),
     color: 'bg-blue-500',
     features: ['Журнал посещенных страниц', 'Упрощение процедуры отчета о затраченном времени для сотрудников', 'Пассивная защита от бездействия', 'Контроль начала и завершения рабочего дня', 'Глубокий аудит временных затрат', 'Мгновенные отчеты о занятости', 'Детальная статистика по активности', 'Адаптация под мобильные устройства'],
-    link: 'https://marketplace.bitrix24.ru/',
+    link: 'https://marketplace.bitrix24.ru/tekhnogalera.chistoe_vremya/',
     installed: false,
     badge: 'Новинка',
     badgeClass: 'bg-blue-100 text-blue-800'
   },
-  /*{
+  {
     id: 2,
-    title: 'Калькулятор под рукой',
-    description: 'Удобный калькулятор, интегрированный во все ключевые места системы',
+    title: 'Удобное начало и завершение рабочего дня',
+    description: 'Забываете начать рабочий день ? Больше не забудете.',
     iconComponent: markRaw(CalculatorIcon),
     color: 'bg-green-500',
-    features: ['Мгновенные расчеты', 'Экономия времени', 'Простой интерфейс', 'Быстрый доступ', 'История вычислений'],
-    link: 'https://marketplace.bitrix24.ru/',
+    features: ['Автоматический контроль начала рабочего дня', 'Автоматический контроль завершения рабочего дня', 'Бесшовная интеграция с интерфейсом битрикс24', 'Гибкая настройка'],
+    link: 'https://marketplace.bitrix24.ru/tekhnogalera.avtomaticheskoe_nachalo_i_zavershenie_rabochego_dnya/',
     installed: false,
     badge: null,
     badgeClass: ''
-  }*/
+  }
 ]
 
 const currentIndex = ref(0)
@@ -138,6 +140,7 @@ onUnmounted(() => {
   stopAutoplay()
 })
 </script>
+
 <template>
   <div>
     <B24Card>
@@ -232,7 +235,7 @@ onUnmounted(() => {
                       <div>
                         <B24Button
                             :variant="solution.installed ? 'outline' : 'primary'"
-                            @click="handleReview"
+                            @click="handleReview(solution.link)"
                             color="air-primary"
                             class="w-full justify-center"
                         >
@@ -292,6 +295,7 @@ onUnmounted(() => {
     </B24Card>
   </div>
 </template>
+
 <style scoped>
 /* Анимация для перехода слайдов */
 .transition-transform {
