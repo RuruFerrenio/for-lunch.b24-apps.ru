@@ -672,20 +672,28 @@ function checkWorkdayStatus(): void {
           const lunchStartMinutes = timeToMinutes(lunchStartTime)
           const lunchEndMinutes = timeToMinutes(lunchEndTime)
 
-          // Проверка для начала обеда (постановка на паузу)
+          // =============================================
+          // ПРОВЕРКА ДЛЯ НАЧАЛА ОБЕДА (постановка на паузу)
+          // =============================================
           // Условия:
           // 1. Функция включена
           // 2. Рабочий день открыт (STATUS === 'OPENED')
           // 3. Текущее время >= времени начала обеда
-          // 4. Еще не отправляли уведомление сегодня
-          if (lunchStart.value.enabled &&
-              workDayParams.STATUS === 'OPENED' &&
-              currentMinutes >= lunchStartMinutes &&
-              !startNotificationSent) {
+          // 4. Текущее время <= времени окончания обеда + 30 минут (grace period)
+          // 5. Еще не отправляли уведомление сегодня
+          // 6. Модальное окно еще не открыто
+          // 7. Методы timeman доступны
 
-            if (applicationOpened.value) {
-              return
-            }
+          const isInLunchInterval = currentMinutes >= lunchStartMinutes && currentMinutes <= lunchEndMinutes
+          const isWithinGracePeriod = currentMinutes <= lunchEndMinutes + 30 // 30 минут после окончания обеда
+          const isValidTimeForStart = currentMinutes >= lunchStartMinutes && isWithinGracePeriod
+
+          if (lunchStart.value.enabled &&
+              isTimemanAvailable.value === true &&
+              workDayParams.STATUS === 'OPENED' &&
+              isValidTimeForStart &&
+              !startNotificationSent &&
+              !applicationOpened.value) {
 
             startNotificationSent = true
 
@@ -700,20 +708,28 @@ function checkWorkdayStatus(): void {
             }
           }
 
-          // Проверка для завершения обеда (возобновление)
+          // =============================================
+          // ПРОВЕРКА ДЛЯ ЗАВЕРШЕНИЯ ОБЕДА (возобновление)
+          // =============================================
           // Условия:
           // 1. Функция включена
           // 2. Рабочий день на паузе (STATUS === 'PAUSED')
-          // 3. Текущее время >= времени завершения обеда
-          // 4. Еще не отправляли уведомление сегодня
-          if (lunchEnd.value.enabled &&
-              workDayParams.STATUS === 'PAUSED' &&
-              currentMinutes >= lunchEndMinutes &&
-              !endNotificationSent) {
+          // 3. Текущее время >= времени окончания обеда
+          // 4. Текущее время <= времени окончания обеда + 60 минут (максимальная задержка)
+          // 5. Еще не отправляли уведомление сегодня
+          // 6. Модальное окно еще не открыто
+          // 7. Методы timeman доступны
 
-            if (applicationOpened.value) {
-              return
-            }
+          const isAfterLunchEnd = currentMinutes >= lunchEndMinutes
+          const isWithinMaxDelay = currentMinutes <= lunchEndMinutes + 60 // 60 минут после окончания обеда
+          const isValidTimeForEnd = isAfterLunchEnd && isWithinMaxDelay
+
+          if (lunchEnd.value.enabled &&
+              isTimemanAvailable.value === true &&
+              workDayParams.STATUS === 'PAUSED' &&
+              isValidTimeForEnd &&
+              !endNotificationSent &&
+              !applicationOpened.value) {
 
             endNotificationSent = true
 
@@ -726,6 +742,21 @@ function checkWorkdayStatus(): void {
             } else if (lunchEnd.value.method === 'push') {
               sendPushNotification(userId, 'end')
             }
+          }
+
+          // =============================================
+          // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ОТ ПОВТОРНЫХ ВЫЗОВОВ
+          // =============================================
+          // Если рабочий день уже на паузе - сбрасываем флаг начала обеда
+          if (workDayParams.STATUS === 'PAUSED') {
+            startNotificationSent = true
+            setStoredFlag('lunch_start_notification_sent', 'true', 24)
+          }
+
+          // Если рабочий день активен - сбрасываем флаг завершения обеда
+          if (workDayParams.STATUS === 'OPENED') {
+            endNotificationSent = true
+            setStoredFlag('lunch_end_notification_sent', 'true', 24)
           }
         }
     )
