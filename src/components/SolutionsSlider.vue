@@ -67,6 +67,18 @@ const handleReview = (link: string): void => {
 const solutions: Solution[] = [
   {
     id: 1,
+    title: 'Удобное начало и завершение рабочего дня',
+    description: 'Забываете начать рабочий день ? Больше не забудете.',
+    iconComponent: markRaw(PowerIcon),
+    color: 'bg-green-500',
+    features: ['Автоматический контроль начала рабочего дня', 'Автоматический контроль завершения рабочего дня', 'Бесшовная интеграция с интерфейсом битрикс24', 'Гибкая настройка'],
+    link: '/marketplace/detail/tekhnogalera.avtomaticheskoe_nachalo_i_zavershenie_rabochego_dnya/',
+    installed: false,
+    badge: 'Новинка',
+    badgeClass: 'bg-blue-100 text-blue-800'
+  },
+  {
+    id: 2,
     title: 'Чистое время',
     description: 'Комплексное улучшение учета рабочего времени и не только.',
     iconComponent: markRaw(ClockIcon),
@@ -77,18 +89,6 @@ const solutions: Solution[] = [
     badge: 'Новинка',
     badgeClass: 'bg-blue-100 text-blue-800'
   },
-  {
-    id: 2,
-    title: 'Удобное начало и завершение рабочего дня',
-    description: 'Забываете начать рабочий день ? Больше не забудете.',
-    iconComponent: markRaw(PowerIcon),
-    color: 'bg-green-500',
-    features: ['Автоматический контроль начала рабочего дня', 'Автоматический контроль завершения рабочего дня', 'Бесшовная интеграция с интерфейсом битрикс24', 'Гибкая настройка'],
-    link: '/marketplace/detail/tekhnogalera.avtomaticheskoe_nachalo_i_zavershenie_rabochego_dnya/',
-    installed: false,
-    badge: 'Новинка',
-    badgeClass: 'bg-blue-100 text-blue-800'
-  }
 ]
 
 const currentIndex = ref(0)
