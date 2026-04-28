@@ -28,6 +28,7 @@ const isProcessing = ref(false)
 const currentUserId = ref<number | null>(null)
 const applicationOpened = ref(false)
 const isTimemanAvailable = ref<boolean | null>(null) // null - не проверено, false - недоступен, true - доступен
+const isLoadingUserOptions = ref(false)
 
 // Настройки обеда
 const lunchStart = ref<LunchSettings>({
@@ -51,7 +52,7 @@ const defaultLunchTime = ref<DefaultLunchTime>({
   endTime: '13:00'
 })
 
-// Индивидуальное время обеда пользователя (из куки)
+// Индивидуальное время обеда пользователя (из user.options)
 const userLunchTime = ref<UserLunchTime>({
   startTime: null,
   endTime: null
@@ -74,66 +75,87 @@ const MODAL_CONFIG = {
 }
 
 // ==========================================================================
-// ФУНКЦИИ ДЛЯ РАБОТЫ С КУКИ (индивидуальные настройки пользователя)
+// ФУНКЦИИ ДЛЯ РАБОТЫ С USER.OPTION (индивидуальные настройки пользователя)
 // ==========================================================================
 
-function setCookie(name: string, value: string, days: number = 365): void {
-  if (typeof document === 'undefined') return
-
-  const expires = new Date()
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
-  document.cookie = `${name}=${value}; expires=${expires.toUTCString()}; path=/; SameSite=None; Secure`
-}
-
-function getCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null
-
-  const nameEQ = `${name}=`
-  const ca = document.cookie.split(';')
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i]
-    while (c.charAt(0) === ' ') c = c.substring(1, c.length)
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length)
-  }
-  return null
-}
-
-function deleteCookie(name: string): void {
-  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure`
-}
-
-// Сохранение индивидуального времени обеда пользователя
-function saveUserLunchTime(startTime: string | null, endTime: string | null): void {
-  if (startTime) {
-    setCookie('lunch_start_time', startTime, 365)
-    userLunchTime.value.startTime = startTime
-  } else {
-    deleteCookie('lunch_start_time')
-    userLunchTime.value.startTime = null
+/**
+ * Сохраняет индивидуальное время обеда пользователя через user.option.set
+ */
+async function saveUserLunchTimeToUserOptions(startTime: string | null, endTime: string | null): Promise<boolean> {
+  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') {
+    console.error('BX24 не загружен')
+    return false
   }
 
-  if (endTime) {
-    setCookie('lunch_end_time', endTime, 365)
-    userLunchTime.value.endTime = endTime
-  } else {
-    deleteCookie('lunch_end_time')
-    userLunchTime.value.endTime = null
-  }
+  return new Promise((resolve) => {
+    const options: Record<string, string> = {
+      lunch_start_time: startTime || '',
+      lunch_end_time: endTime || ''
+    }
+
+    BX24.callMethod('user.option.set', {
+      options: options
+    }, (result: any) => {
+      if (result.error()) {
+        console.error('Ошибка при сохранении настроек обеда:', result.error())
+        resolve(false)
+      } else {
+        // Обновляем локальное состояние
+        userLunchTime.value.startTime = startTime
+        userLunchTime.value.endTime = endTime
+        resolve(true)
+      }
+    })
+  })
 }
 
-// Загрузка индивидуального времени обеда пользователя
-function loadUserLunchTime(): void {
-  const startTime = getCookie('lunch_start_time')
-  const endTime = getCookie('lunch_end_time')
+/**
+ * Загружает индивидуальное время обеда пользователя через user.option.get
+ */
+async function loadUserLunchTimeFromUserOptions(): Promise<void> {
+  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') {
+    console.error('BX24 не загружен')
+    return
+  }
 
-  userLunchTime.value.startTime = startTime
-  userLunchTime.value.endTime = endTime
+  isLoadingUserOptions.value = true
+
+  return new Promise((resolve) => {
+    BX24.callMethod('user.option.get', {
+      names: ['lunch_start_time', 'lunch_end_time']
+    }, (result: any) => {
+      isLoadingUserOptions.value = false
+
+      if (result.error()) {
+        console.error('Ошибка при загрузке настроек обеда:', result.error())
+        resolve()
+        return
+      }
+
+      const data = result.data()
+
+      if (data && data.lunch_start_time && data.lunch_start_time !== '') {
+        userLunchTime.value.startTime = data.lunch_start_time
+      } else {
+        userLunchTime.value.startTime = null
+      }
+
+      if (data && data.lunch_end_time && data.lunch_end_time !== '') {
+        userLunchTime.value.endTime = data.lunch_end_time
+      } else {
+        userLunchTime.value.endTime = null
+      }
+
+      resolve()
+    })
+  })
 }
 
 // Очистка временных флагов
 function clearTempFlags(): void {
-  deleteCookie('open_app_mode')
-  deleteCookie('modal_type')
+  if (typeof document === 'undefined') return
+  document.cookie = 'open_app_mode=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure'
+  document.cookie = 'modal_type=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure'
 }
 
 // ==========================================================================
@@ -565,8 +587,11 @@ function openLunchModal(mode: 'start' | 'end'): void {
     const bgColor = mode === 'start' ? 'primary' : 'success'
     const labelText = mode === 'start' ? 'Обед' : 'За работу'
 
-    setCookie('open_app_mode', 'modal', 1)
-    setCookie('modal_type', mode, 1)
+    // Используем document.cookie для временных флагов (они не хранятся долго)
+    if (typeof document !== 'undefined') {
+      document.cookie = `open_app_mode=modal; path=/; SameSite=None; Secure`
+      document.cookie = `modal_type=${mode}; path=/; SameSite=None; Secure`
+    }
 
     const modalSettings = {
       opened: true,
@@ -747,17 +772,21 @@ function handleVisibilityChange(): void {
 // ==========================================================================
 
 // Обновить индивидуальное время обеда пользователя
-function updateUserLunchTime(startTime: Time | null, endTime: Time | null): void {
+async function updateUserLunchTime(startTime: Time | null, endTime: Time | null): Promise<boolean> {
   const startStr = startTime ? `${startTime.hour.toString().padStart(2, '0')}:${startTime.minute.toString().padStart(2, '0')}` : null
   const endStr = endTime ? `${endTime.hour.toString().padStart(2, '0')}:${endTime.minute.toString().padStart(2, '0')}` : null
 
-  saveUserLunchTime(startStr, endStr)
+  const success = await saveUserLunchTimeToUserOptions(startStr, endStr)
 
-  // Сбрасываем флаги уведомлений после изменения времени
-  startNotificationSent = false
-  endNotificationSent = false
-  deleteStoredFlag('lunch_start_notification_sent')
-  deleteStoredFlag('lunch_end_notification_sent')
+  if (success) {
+    // Сбрасываем флаги уведомлений после изменения времени
+    startNotificationSent = false
+    endNotificationSent = false
+    deleteStoredFlag('lunch_start_notification_sent')
+    deleteStoredFlag('lunch_end_notification_sent')
+  }
+
+  return success
 }
 
 // Получить текущее время обеда (для отображения)
@@ -768,10 +797,20 @@ function getCurrentLunchTimes(): { start: string, end: string } {
   }
 }
 
+// Получить индивидуальное время обеда пользователя
+function getUserLunchTime(): UserLunchTime {
+  return {
+    startTime: userLunchTime.value.startTime,
+    endTime: userLunchTime.value.endTime
+  }
+}
+
 // Экспортируем методы для использования в других компонентах
 defineExpose({
   updateUserLunchTime,
-  getCurrentLunchTimes
+  getCurrentLunchTimes,
+  getUserLunchTime,
+  loadUserLunchTimeFromUserOptions
 })
 
 // ==========================================================================
@@ -781,9 +820,6 @@ defineExpose({
 onMounted(async () => {
   // Очищаем временные флаги
   clearTempFlags()
-
-  // Загружаем индивидуальные настройки пользователя
-  loadUserLunchTime()
 
   // Устанавливаем обработчик видимости страницы
   document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -801,6 +837,9 @@ onMounted(async () => {
         await loadSettings()
         return
       }
+
+      // Загружаем индивидуальные настройки пользователя из user.options
+      await loadUserLunchTimeFromUserOptions()
 
       await loadSettings()
 
