@@ -559,7 +559,6 @@ onUnmounted(() => {
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
-                          placeholder="Выберите время"
                       />
                     </div>
                     <div>
@@ -571,7 +570,6 @@ onUnmounted(() => {
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
-                          placeholder="Выберите время"
                       />
                     </div>
                   </div>
