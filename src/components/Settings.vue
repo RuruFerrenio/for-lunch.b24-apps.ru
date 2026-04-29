@@ -495,8 +495,16 @@ watch(() => formData.value.lunchEnd.method, () => {
                 </B24FormField>
               </div>
 
-              <!-- Разделитель -->
-              <div class="text-gray-400 font-medium text-lg">—</div>
+              <!-- Отображение длительности обеда -->
+              <div v-if="hasLunchSettings" class="mt-4 text-center">
+              <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+                <ClockIcon class="w-3 h-3" />
+                {{ getLunchDuration }}
+              </span>
+              </div>
+              <div v-else class="mt-4 text-center text-xs text-gray-400">
+                Выберите время начала и окончания обеда
+              </div>
 
               <!-- Время окончания -->
               <div class="min-w-[120px]">
@@ -512,17 +520,6 @@ watch(() => formData.value.lunchEnd.method, () => {
                   />
                 </B24FormField>
               </div>
-            </div>
-
-            <!-- Отображение длительности обеда -->
-            <div v-if="hasLunchSettings" class="mt-4 text-center">
-              <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
-                <ClockIcon class="w-3 h-3" />
-                {{ getLunchDuration }}
-              </span>
-            </div>
-            <div v-else class="mt-4 text-center text-xs text-gray-400">
-              Выберите время начала и окончания обеда
             </div>
 
             <!-- Кнопка сохранения -->
