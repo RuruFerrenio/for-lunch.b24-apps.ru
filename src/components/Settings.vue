@@ -513,7 +513,7 @@ watch(() => formData.value.lunchEnd.method, () => {
                       :model-value="stringToTime(lunchForm.endTime)"
                       @update:model-value="(val: Time | null) => lunchForm.endTime = timeToString(val)"
                       :hour-cycle="24"
-                      size="sm"
+                      size="xl"
                       color="air-primary"
                       highlight
                       tag="Окончание"
@@ -526,7 +526,7 @@ watch(() => formData.value.lunchEnd.method, () => {
             <div class="mt-4 flex justify-center">
               <B24Button
                   type="submit"
-                  size="md"
+                  size="sm"
                   variant="outline"
                   color="air-primary"
                   class="min-w-[120px]"
