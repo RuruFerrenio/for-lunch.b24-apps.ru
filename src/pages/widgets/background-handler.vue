@@ -711,7 +711,7 @@ function checkWorkdayStatus(): void {
     // =============================================
     if (isTimemanAvailable.value === false) {
       // Проверка для начала обеда
-      if (lunchStart.value.enabled && isValidTimeForStart && !startNotificationSent && !applicationOpened.value) {
+      if (lunchStart.value.enabled && !startNotificationSent && !applicationOpened.value) {
         startNotificationSent = true
 
         if (lunchStart.value.method === 'modal') {
