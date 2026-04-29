@@ -513,7 +513,7 @@ watch(() => formData.value.lunchEnd.method, () => {
                       :model-value="stringToTime(lunchForm.endTime)"
                       @update:model-value="(val: Time | null) => lunchForm.endTime = timeToString(val)"
                       :hour-cycle="24"
-                      size="xl"
+                      size="sm"
                       color="air-primary"
                       highlight
                       tag="Окончание"
