@@ -9,6 +9,7 @@ import RefreshIcon from '@bitrix24/b24icons-vue/main/RefreshIcon'
 import SuccessIcon from '@bitrix24/b24icons-vue/button/SuccessIcon'
 import ErrorIcon from '@bitrix24/b24icons-vue/main/UnavailableIcon'
 import LoadingIcon from '@bitrix24/b24icons-vue/animated/LoaderWaitIcon'
+import ClockIcon from '@bitrix24/b24icons-vue/outline/ClockIcon'
 import { Time } from '@internationalized/date'
 
 // Состояние
@@ -54,6 +55,39 @@ const configSettings = ref({
     startTime: new Time(12, 0, 0),  // ✅ Теперь это объект Time
     endTime: new Time(13, 0, 0)     // ✅ Теперь это объект Time
   }
+})
+
+// Вычисляемая длительность обеда
+const getLunchDuration = computed(() => {
+  const startTime = configSettings.value.defaultLunchTime.startTime
+  const endTime = configSettings.value.defaultLunchTime.endTime
+
+  if (!startTime || !endTime) {
+    return '—'
+  }
+
+  let totalMinutes = (endTime.hour * 60 + endTime.minute) - (startTime.hour * 60 + startTime.minute)
+
+  // Если время окончания меньше времени начала (переход через полночь)
+  if (totalMinutes < 0) {
+    totalMinutes += 24 * 60
+  }
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (hours === 0) {
+    return `${minutes} мин`
+  } else if (minutes === 0) {
+    return `${hours} ч`
+  } else {
+    return `${hours} ч ${minutes} мин`
+  }
+})
+
+const hasLunchSettings = computed(() => {
+  return configSettings.value.defaultLunchTime.startTime !== null &&
+      configSettings.value.defaultLunchTime.endTime !== null
 })
 
 // Конвертеры для времени
@@ -549,8 +583,9 @@ onUnmounted(() => {
                   </div>
                 </div>
                 <div class="mt-4 pt-4 border-t">
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                  <div class="flex items-center justify-center gap-3 flex-wrap sm:flex-nowrap">
+                    <!-- Время начала -->
+                    <div class="min-w-[120px]">
                       <B24InputTime
                           :model-value="configSettings.defaultLunchTime.startTime"
                           @update:model-value="(val) => configSettings.defaultLunchTime.startTime = val"
@@ -561,7 +596,20 @@ onUnmounted(() => {
                           tag="Начало"
                       />
                     </div>
-                    <div>
+
+                    <!-- Отображение длительности обеда -->
+                    <div v-if="hasLunchSettings" class="text-center">
+        <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-medium">
+          <ClockIcon class="w-3 h-3" />
+          {{ getLunchDuration }}
+        </span>
+                    </div>
+                    <div v-else class="text-center text-xs text-gray-400">
+                      Выберите время начала и окончания обеда
+                    </div>
+
+                    <!-- Время окончания -->
+                    <div class="min-w-[120px]">
                       <B24InputTime
                           :model-value="configSettings.defaultLunchTime.endTime"
                           @update:model-value="(val) => configSettings.defaultLunchTime.endTime = val"
