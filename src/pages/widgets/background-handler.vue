@@ -678,31 +678,27 @@ function checkWorkdayStatus(): void {
           // =============================================
           // ПРОВЕРКА ДЛЯ НАЧАЛА ОБЕДА (постановка на паузу)
           // =============================================
-          // Условия:
+          // Новые условия:
           // 1. Функция включена
           // 2. Рабочий день открыт (STATUS === 'OPENED')
           // 3. Текущее время >= времени начала обеда
-          // 4. Текущее время <= времени окончания обеда + 30 минут (grace period)
+          // 4. Текущее время <= времени окончания обеда (строго до окончания)
           // 5. Еще не отправляли уведомление сегодня
           // 6. Модальное окно еще не открыто
           // 7. Методы timeman доступны
 
           const isInLunchInterval = currentMinutes >= lunchStartMinutes && currentMinutes <= lunchEndMinutes
-          const isWithinGracePeriod = currentMinutes <= lunchEndMinutes + 30 // 30 минут после окончания обеда
-          const isValidTimeForStart = currentMinutes >= lunchStartMinutes && isWithinGracePeriod
 
           if (lunchStart.value.enabled &&
               isTimemanAvailable.value === true &&
               workDayParams.STATUS === 'OPENED' &&
-              isValidTimeForStart &&
+              isInLunchInterval &&
               !startNotificationSent &&
               !applicationOpened.value) {
 
             startNotificationSent = true
 
-            console.log('Метод')
-            console.log(lunchStart.value.method)
-            console.log(lunchEnd.value.method)
+            console.log('Начало обеда, метод:', lunchStart.value.method)
 
             if (lunchStart.value.method === 'modal') {
               openLunchModal('start')
@@ -718,7 +714,7 @@ function checkWorkdayStatus(): void {
           // =============================================
           // ПРОВЕРКА ДЛЯ ЗАВЕРШЕНИЯ ОБЕДА (возобновление)
           // =============================================
-          // Условия:
+          // Новые условия:
           // 1. Функция включена
           // 2. Рабочий день на паузе (STATUS === 'PAUSED')
           // 3. Текущее время >= времени окончания обеда
@@ -728,7 +724,7 @@ function checkWorkdayStatus(): void {
           // 7. Методы timeman доступны
 
           const isAfterLunchEnd = currentMinutes >= lunchEndMinutes
-          const isWithinMaxDelay = currentMinutes <= lunchEndMinutes + 60 // 60 минут после окончания обеда
+          const isWithinMaxDelay = currentMinutes <= lunchEndMinutes + 60
           const isValidTimeForEnd = isAfterLunchEnd && isWithinMaxDelay
 
           if (lunchEnd.value.enabled &&
@@ -739,6 +735,8 @@ function checkWorkdayStatus(): void {
               !applicationOpened.value) {
 
             endNotificationSent = true
+
+            console.log('Завершение обеда, метод:', lunchEnd.value.method)
 
             if (lunchEnd.value.method === 'modal') {
               openLunchModal('end')
@@ -754,13 +752,13 @@ function checkWorkdayStatus(): void {
           // =============================================
           // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ОТ ПОВТОРНЫХ ВЫЗОВОВ
           // =============================================
-          // Если рабочий день уже на паузе - сбрасываем флаг начала обеда
+          // Если рабочий день на паузе - блокируем повторный старт
           if (workDayParams.STATUS === 'PAUSED') {
             startNotificationSent = true
             setStoredFlag('lunch_start_notification_sent', 'true', 24)
           }
 
-          // Если рабочий день активен - сбрасываем флаг завершения обеда
+          // Если рабочий день активен - блокируем повторное завершение
           if (workDayParams.STATUS === 'OPENED') {
             endNotificationSent = true
             setStoredFlag('lunch_end_notification_sent', 'true', 24)
