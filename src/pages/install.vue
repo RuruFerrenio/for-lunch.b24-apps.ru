@@ -33,27 +33,27 @@ const settingsStatus = ref(null)
 
 // Выбранные функции
 const selectedFeatures = ref({
-  lunchStart: true,
-  lunchEnd: true,
-  weekendActivity: false
+  lunchStart: true,    // Помощь в начале обеда - по умолчанию включена
+  lunchEnd: true,      // Помощь в завершении обеда - по умолчанию включена
+  weekendActivity: false // Активность в выходные - по умолчанию выключена
 })
 
 // Расширенные настройки (методы)
 const configSettings = ref({
   lunchStart: {
     enabled: true,
-    method: 'modal'
+    method: 'modal'  // По умолчанию модальное окно
   },
   lunchEnd: {
     enabled: true,
-    method: 'modal'
+    method: 'modal'  // По умолчанию модальное окно
   },
   weekendActivity: {
-    enabled: false
+    enabled: false    // По умолчанию активность в выходные выключена
   },
   defaultLunchTime: {
-    startTime: '12:00',
-    endTime: '13:00'
+    startTime: '12:00',  // Время начала обеда по умолчанию
+    endTime: '13:00'     // Время завершения обеда по умолчанию
   }
 })
 
@@ -76,44 +76,6 @@ const PLACEMENT_CONFIGS = {
     title: 'Встройка для управления обедом из уведомлений',
     description: 'Позволяет сотруднику управлять обеденным перерывом через сообщения в чатах или push-уведомлениях',
     options: {}
-  }
-}
-
-// Функции преобразования времени
-const stringToTime = (timeStr: string | null): Time | null => {
-  if (!timeStr || timeStr === '') return null
-  const parts = timeStr.split(':')
-  if (parts.length !== 2) return null
-  const hours = parseInt(parts[0], 10)
-  const minutes = parseInt(parts[1], 10)
-  if (isNaN(hours) || isNaN(minutes)) return null
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
-  return new Time(hours, minutes, 0)
-}
-
-const timeToString = (time: Time | null): string | null => {
-  if (!time) return null
-  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
-}
-
-// Реактивные переменные для времени (для прямой работы с B24InputTime)
-const startTimeValue = ref<Time | null>(stringToTime(configSettings.value.defaultLunchTime.startTime))
-const endTimeValue = ref<Time | null>(stringToTime(configSettings.value.defaultLunchTime.endTime))
-
-// Следим за изменениями и обновляем configSettings
-const updateStartTime = (val: Time | null) => {
-  startTimeValue.value = val
-  const timeStr = timeToString(val)
-  if (timeStr) {
-    configSettings.value.defaultLunchTime.startTime = timeStr
-  }
-}
-
-const updateEndTime = (val: Time | null) => {
-  endTimeValue.value = val
-  const timeStr = timeToString(val)
-  if (timeStr) {
-    configSettings.value.defaultLunchTime.endTime = timeStr
   }
 }
 
@@ -260,18 +222,30 @@ const placementManager = {
   }
 }
 
+// Преобразование Time в строку
+const timeToString = (time: Time | string | null): string | null => {
+  if (!time) return null
+  if (typeof time === 'string') return time
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
+}
+
 // Сохранение настроек приложения через app.option.set
 const saveSettings = async () => {
   settingsStatus.value = 'loading'
   try {
     const settingsToSave = {
+      // Настройки начала обеда
       lunch_start_enabled: selectedFeatures.value.lunchStart ? 'Y' : 'N',
       lunch_start_method: configSettings.value.lunchStart.method,
+      // Настройки завершения обеда
       lunch_end_enabled: selectedFeatures.value.lunchEnd ? 'Y' : 'N',
       lunch_end_method: configSettings.value.lunchEnd.method,
+      // Настройки активности в выходные
       lunch_weekend_activity_enabled: selectedFeatures.value.weekendActivity ? 'Y' : 'N',
+      // Настройки времени обеда по умолчанию
       lunch_default_start_time: configSettings.value.defaultLunchTime.startTime,
       lunch_default_end_time: configSettings.value.defaultLunchTime.endTime,
+      // Флаг завершения установки
       installation_completed: 'Y'
     }
 
@@ -369,7 +343,7 @@ const hasSelectedFeatures = computed(() => {
 })
 
 const installationsToProcess = computed(() => {
-  return 3
+  return 3 // Две встройки + настройки
 })
 
 const installationProgress = computed(() => {
@@ -579,8 +553,7 @@ onUnmounted(() => {
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-1">Время начала обеда</label>
                       <B24InputTime
-                          :model-value="startTimeValue"
-                          @update:model-value="updateStartTime"
+                          v-model="configSettings.defaultLunchTime.startTime"
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
@@ -590,8 +563,7 @@ onUnmounted(() => {
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-1">Время завершения обеда</label>
                       <B24InputTime
-                          :model-value="endTimeValue"
-                          @update:model-value="updateEndTime"
+                          v-model="configSettings.defaultLunchTime.endTime"
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
