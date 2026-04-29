@@ -697,6 +697,10 @@ function checkWorkdayStatus(): void {
 
             startNotificationSent = true
 
+            console.log('Метод')
+            console.log(lunchStart.value.method)
+            console.log(lunchEnd.value.method)
+
             if (lunchStart.value.method === 'modal') {
               openLunchModal('start')
             } else if (lunchStart.value.method === 'auto') {
