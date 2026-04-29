@@ -551,25 +551,27 @@ onUnmounted(() => {
                 <div class="mt-4 pt-4 border-t">
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Время начала обеда</label>
                       <!-- ✅ Исправлено: теперь передаём Time объект -->
                       <B24InputTime
                           :model-value="configSettings.defaultLunchTime.startTime"
                           @update:model-value="(val) => configSettings.defaultLunchTime.startTime = val"
                           :hour-cycle="24"
-                          size="md"
+                          size="xl"
                           color="air-primary"
+                          highlight
+                          tag="Начало"
                       />
                     </div>
                     <div>
-                      <label class="block text-sm font-medium text-gray-700 mb-1">Время завершения обеда</label>
                       <!-- ✅ Исправлено: теперь передаём Time объект -->
                       <B24InputTime
                           :model-value="configSettings.defaultLunchTime.endTime"
                           @update:model-value="(val) => configSettings.defaultLunchTime.endTime = val"
                           :hour-cycle="24"
-                          size="md"
+                          size="xl"
                           color="air-primary"
+                          highlight
+                          tag="Окончание"
                       />
                     </div>
                   </div>
