@@ -539,7 +539,7 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center bg-white p-4">
-    <div class="text-center w-full max-w-md mx-auto">
+    <div class="text-center w-full mx-auto">
       <!-- Иконка -->
       <div class="mb-8 flex justify-center">
         <div class="w-24 h-24 rounded-full flex items-center justify-center"
