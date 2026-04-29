@@ -307,6 +307,14 @@ function getCurrentLunchEndTime(): string {
   return defaultLunchTime.value.endTime
 }
 
+// Упрощенная проверка выходных (без API)
+function checkIsWeekendSimple(): boolean {
+  const now = new Date()
+  const currentDayOfWeek = now.getDay()
+  // Воскресенье = 0, Суббота = 6
+  return currentDayOfWeek === 0 || currentDayOfWeek === 6
+}
+
 // Альтернативная проверка времени без использования timeman
 function checkTimeOnly(): void {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
@@ -330,10 +338,16 @@ function checkTimeOnly(): void {
     const lunchStartMinutes = timeToMinutes(lunchStartTime)
     const lunchEndMinutes = timeToMinutes(lunchEndTime)
 
+    // Проверка на выходные (упрощенная, без API)
+    const isWeekend = checkIsWeekendSimple()
+    if (isWeekend && !weekendActivity.value.enabled) {
+      console.log('Сегодня выходной, действия отключены')
+      return
+    }
+
     // =============================================
     // ПРОВЕРКА ДЛЯ НАЧАЛА ОБЕДА (только уведомления, без timeman)
     // =============================================
-    const isInLunchInterval = currentMinutes >= lunchStartMinutes && currentMinutes <= lunchEndMinutes
     const isWithinGracePeriod = currentMinutes <= lunchEndMinutes + 30
     const isValidTimeForStart = currentMinutes >= lunchStartMinutes && isWithinGracePeriod
 
@@ -389,8 +403,18 @@ function checkTimeOnly(): void {
 }
 
 // Проверка, нужно ли сегодня выполнять действия (с учетом выходных)
+// Адаптивная версия - использует упрощенную проверку если timeman недоступен
 function shouldAllowActivity(callback: (allow: boolean) => void): void {
-  checkIsWeekend(function(isWeekend: boolean) {
+  // Если timeman недоступен - используем упрощенную проверку без API
+  if (isTimemanAvailable.value === false) {
+    const isWeekend = checkIsWeekendSimple()
+    const allow = !(isWeekend && !weekendActivity.value.enabled)
+    callback(allow)
+    return
+  }
+
+  // Полный режим с API (только если timeman доступен)
+  checkIsWeekendWithAPI(function(isWeekend: boolean) {
     if (isWeekend && !weekendActivity.value.enabled) {
       callback(false)
     } else {
@@ -399,17 +423,17 @@ function shouldAllowActivity(callback: (allow: boolean) => void): void {
   })
 }
 
-// Проверка, является ли текущий день выходным
-function checkIsWeekend(callback: (isWeekend: boolean) => void): void {
+// Проверка выходных через API (только если timeman доступен)
+function checkIsWeekendWithAPI(callback: (isWeekend: boolean) => void): void {
   if (typeof BX24 === 'undefined') {
-    callback(false)
+    callback(checkIsWeekendSimple())
     return
   }
 
   getCurrentUserId(function(userId: number) {
     if (!userId) {
       console.error('Не удалось получить ID пользователя')
-      callback(false)
+      callback(checkIsWeekendSimple())
       return
     }
 
@@ -418,8 +442,8 @@ function checkIsWeekend(callback: (isWeekend: boolean) => void): void {
         { USER_ID: userId },
         function(result: any) {
           if (result.error()) {
-            console.error('Ошибка получения настроек для проверки выходных:', result.error())
-            callback(false)
+            console.warn('Ошибка получения настроек для проверки выходных, используем упрощенную проверку:', result.error())
+            callback(checkIsWeekendSimple())
             return
           }
 
@@ -436,10 +460,6 @@ function checkIsWeekend(callback: (isWeekend: boolean) => void): void {
 
           if (currentDayOfWeek === 0 || currentDayOfWeek === 6) {
             isWeekend = true
-          }
-
-          if (settings.SCHEDULE_ID) {
-            isWeekend = (currentDayOfWeek === 0 || currentDayOfWeek === 6)
           }
 
           callback(isWeekend)
@@ -855,14 +875,14 @@ function startPeriodicCheck(): void {
     checkWorkdayStatus()
   }, MODAL_CONFIG.CHECK_INTERVAL_SECONDS * 1000)
 
-  console.log(`Запущена периодическая проверка (интервал: ${MODAL_CONFIG.CHECK_INTERVAL_SECONDS} сек)`)
+  console.log(`⏲️ Запущена периодическая проверка (интервал: ${MODAL_CONFIG.CHECK_INTERVAL_SECONDS} сек)`)
 }
 
 function stopPeriodicCheck(): void {
   if (periodicCheckInterval) {
     clearInterval(periodicCheckInterval)
     periodicCheckInterval = null
-    console.log('Периодическая проверка остановлена')
+    console.log('⏲️ Периодическая проверка остановлена')
   }
 }
 
@@ -871,11 +891,11 @@ function handleVisibilityChange(): void {
   isPageVisible = !document.hidden
 
   if (isPageVisible && !wasVisible) {
-    console.log('Страница стала видимой')
+    console.log('👁️ Страница стала видимой')
     startPeriodicCheck()
     checkWorkdayStatus()
   } else if (!isPageVisible && wasVisible) {
-    console.log('Страница скрыта')
+    console.log('👁️ Страница скрыта')
     stopPeriodicCheck()
   }
 }
