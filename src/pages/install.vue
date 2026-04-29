@@ -9,7 +9,6 @@ import RefreshIcon from '@bitrix24/b24icons-vue/main/RefreshIcon'
 import SuccessIcon from '@bitrix24/b24icons-vue/button/SuccessIcon'
 import ErrorIcon from '@bitrix24/b24icons-vue/main/UnavailableIcon'
 import LoadingIcon from '@bitrix24/b24icons-vue/animated/LoaderWaitIcon'
-import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 import { Time } from '@internationalized/date'
 
 // Состояние
@@ -33,29 +32,44 @@ const settingsStatus = ref(null)
 
 // Выбранные функции
 const selectedFeatures = ref({
-  lunchStart: true,    // Помощь в начале обеда - по умолчанию включена
-  lunchEnd: true,      // Помощь в завершении обеда - по умолчанию включена
-  weekendActivity: false // Активность в выходные - по умолчанию выключена
+  lunchStart: true,
+  lunchEnd: true,
+  weekendActivity: false
 })
 
 // Расширенные настройки (методы)
 const configSettings = ref({
   lunchStart: {
     enabled: true,
-    method: 'modal'  // По умолчанию модальное окно
+    method: 'modal'
   },
   lunchEnd: {
     enabled: true,
-    method: 'modal'  // По умолчанию модальное окно
+    method: 'modal'
   },
   weekendActivity: {
-    enabled: false    // По умолчанию активность в выходные выключена
+    enabled: false
   },
   defaultLunchTime: {
-    startTime: '12:00',  // Время начала обеда по умолчанию
-    endTime: '13:00'     // Время завершения обеда по умолчанию
+    startTime: new Time(12, 0, 0),  // ✅ Теперь это объект Time
+    endTime: new Time(13, 0, 0)     // ✅ Теперь это объект Time
   }
 })
+
+// Конвертеры для времени
+const timeToString = (time: Time | null): string | null => {
+  if (!time) return null
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
+}
+
+const stringToTime = (timeStr: string | null): Time | null => {
+  if (!timeStr) return null
+  const [hours, minutes] = timeStr.split(':')
+  if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
+    return new Time(parseInt(hours), parseInt(minutes), 0)
+  }
+  return null
+}
 
 // URL обработчиков
 const HANDLERS = {
@@ -222,30 +236,18 @@ const placementManager = {
   }
 }
 
-// Преобразование Time в строку
-const timeToString = (time: Time | string | null): string | null => {
-  if (!time) return null
-  if (typeof time === 'string') return time
-  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
-}
-
 // Сохранение настроек приложения через app.option.set
 const saveSettings = async () => {
   settingsStatus.value = 'loading'
   try {
     const settingsToSave = {
-      // Настройки начала обеда
       lunch_start_enabled: selectedFeatures.value.lunchStart ? 'Y' : 'N',
       lunch_start_method: configSettings.value.lunchStart.method,
-      // Настройки завершения обеда
       lunch_end_enabled: selectedFeatures.value.lunchEnd ? 'Y' : 'N',
       lunch_end_method: configSettings.value.lunchEnd.method,
-      // Настройки активности в выходные
       lunch_weekend_activity_enabled: selectedFeatures.value.weekendActivity ? 'Y' : 'N',
-      // Настройки времени обеда по умолчанию
-      lunch_default_start_time: configSettings.value.defaultLunchTime.startTime,
-      lunch_default_end_time: configSettings.value.defaultLunchTime.endTime,
-      // Флаг завершения установки
+      lunch_default_start_time: timeToString(configSettings.value.defaultLunchTime.startTime),
+      lunch_default_end_time: timeToString(configSettings.value.defaultLunchTime.endTime),
       installation_completed: 'Y'
     }
 
@@ -343,7 +345,7 @@ const hasSelectedFeatures = computed(() => {
 })
 
 const installationsToProcess = computed(() => {
-  return 3 // Две встройки + настройки
+  return 3
 })
 
 const installationProgress = computed(() => {
@@ -398,7 +400,7 @@ onUnmounted(() => {
             fill="#009DDB"
             class="w-8 h-8 md:w-10 md:h-10 text-blue-600"
         >
-          <path d="M336-240h48v-241q26-4 43-24t17-47v-150.1q0-7.9-5-12.9t-13-5q-8 0-13 5t-5 13.15V-600h-30v-101.85q0-8.15-5-13.15t-13-5q-8 0-13 5t-5 13.15V-600h-30v-101.85q0-8.15-5-13.15t-13-5q-8 0-13 5t-5 12.9V-552q0 27 17 47t43 24v241Zm240 0h48v-246q26-11 43-41.78 17-30.77 17-72.1Q684-650 659.5-685 635-720 600-720t-59.5 35Q516-650 516-599.88q0 41.33 17 72.1Q550-497 576-486v246ZM168-96q-29.7 0-50.85-21.15Q96-138.3 96-168v-624q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v624q0 29.7-21.15 50.85Q821.7-96 792-96H168Zm0-72h624v-624H168v624Zm0 0v-624 624Z"/>
+          <path d="M336-240h48v-241q26-4 43-24t17-47v-150.1q0-7.9-5-12.9t-13-5q-8 0-13 5t-5 13.15V-600h-30v-101.85q0-8.15-5-13.15t-13-5q-8 0-13 5t-5 13.15V-600h-30v-101.85q0-8.15-5-13.15t-13-5q-8 0-13 5t-5 12.9V-552q0 27 17 47t43 24v241Zm240 0h48v-246q26-11 43-41.78 17-30.77 17-72.1Q684-650 659.5-685 635-720 600-720t-59.5 35Q516-650 516-599.88q0 41.33 17 72.1Q550-497 576-486v240ZM168-96q-29.7 0-50.85-21.15Q96-138.3 96-168v-624q0-29.7 21.15-50.85Q138.3-864 168-864h624q29.7 0 50.85 21.15Q864-821.7 864-792v624q0 29.7-21.15 50.85Q821.7-96 792-96H168Zm0-72h624v-624H168v624Zm0 0v-624 624Z"/>
         </svg>
       </div>
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2 md:mb-3 px-2">
@@ -447,7 +449,7 @@ onUnmounted(() => {
                 </li>
                 <li class="flex items-start">
                   <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
-                  <span class="text-sm md:text-base text-gray-700">Гибкая настройка способов уведомлений (модальное окно, автоматический, push, чат)</span>
+                  <span class="text-sm md:text-base text-gray-700">Гибкая настройка способов уведомлений (модальное окно, сообщение в чат, push)</span>
                 </li>
                 <li class="flex items-start">
                   <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
@@ -496,7 +498,6 @@ onUnmounted(() => {
                   <B24RadioGroup
                       v-model="configSettings.lunchStart.method"
                       :items="[
-                        { label: 'Автоматическое начало обеда', value: 'auto', description: 'Обеденный перерыв начинается автоматически' },
                         { label: 'Модальное окно с предложением', value: 'modal', description: 'Показывать окно с предложением начать обед' },
                         { label: 'Сообщение в чате', value: 'chat', description: 'Отправлять уведомление в чат Б24' },
                         { label: 'Push-уведомление', value: 'push', description: 'Отправлять push-уведомление' }
@@ -525,7 +526,6 @@ onUnmounted(() => {
                   <B24RadioGroup
                       v-model="configSettings.lunchEnd.method"
                       :items="[
-                        { label: 'Автоматическое завершение обеда', value: 'auto', description: 'Обеденный перерыв завершается автоматически' },
                         { label: 'Модальное окно с предложением', value: 'modal', description: 'Показывать окно с предложением завершить обед' },
                         { label: 'Сообщение в чате', value: 'chat', description: 'Отправлять уведомление в чат Б24' },
                         { label: 'Push-уведомление', value: 'push', description: 'Отправлять push-уведомление' }
@@ -552,8 +552,10 @@ onUnmounted(() => {
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-1">Время начала обеда</label>
+                      <!-- ✅ Исправлено: теперь передаём Time объект -->
                       <B24InputTime
-                          v-model="configSettings.defaultLunchTime.startTime"
+                          :model-value="configSettings.defaultLunchTime.startTime"
+                          @update:model-value="(val) => configSettings.defaultLunchTime.startTime = val"
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
@@ -562,8 +564,10 @@ onUnmounted(() => {
                     </div>
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-1">Время завершения обеда</label>
+                      <!-- ✅ Исправлено: теперь передаём Time объект -->
                       <B24InputTime
-                          v-model="configSettings.defaultLunchTime.endTime"
+                          :model-value="configSettings.defaultLunchTime.endTime"
+                          @update:model-value="(val) => configSettings.defaultLunchTime.endTime = val"
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
@@ -725,7 +729,7 @@ onUnmounted(() => {
                   </div>
                   <div class="flex items-start">
                     <CheckIcon class="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <span class="text-sm text-gray-700">Время обеда по умолчанию: {{ configSettings.defaultLunchTime.startTime }} - {{ configSettings.defaultLunchTime.endTime }}</span>
+                    <span class="text-sm text-gray-700">Время обеда по умолчанию: {{ timeToString(configSettings.defaultLunchTime.startTime) }} - {{ timeToString(configSettings.defaultLunchTime.endTime) }}</span>
                   </div>
                   <div v-if="selectedFeatures.weekendActivity" class="flex items-start">
                     <CheckIcon class="w-4 h-4 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
