@@ -810,10 +810,10 @@ onUnmounted(() => {
           </B24Button>
 
           <div v-if="isTimemanAvailable === false" class="text-center text-xs text-gray-400 py-2">
-            ⚡ Функция остановки и возобновления рабочего дня доступна только на тарифе «Профессиональный»
+             Функция остановки и возобновления рабочего дня доступна только на тарифе «Профессиональный»
           </div>
           <div v-else-if="isActionButtonDisabled && workdayInfo?.STATUS === 'CLOSED'" class="text-center text-sm text-gray-400 py-2">
-            ⏰ Начните рабочий день в Битрикс24, чтобы управлять обедом
+             Начните рабочий день в Битрикс24, чтобы управлять обедом
           </div>
         </div>
       </div>
