@@ -79,6 +79,36 @@ const PLACEMENT_CONFIGS = {
   }
 }
 
+// Функции преобразования времени
+const stringToTime = (timeStr: string | null): Time | null => {
+  if (!timeStr) return null
+  const [hours, minutes] = timeStr.split(':')
+  if (hours && minutes && !isNaN(parseInt(hours)) && !isNaN(parseInt(minutes))) {
+    return new Time(parseInt(hours), parseInt(minutes), 0)
+  }
+  return null
+}
+
+const timeToString = (time: Time | null): string | null => {
+  if (!time) return null
+  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
+}
+
+// Computed свойства для работы с Time объектами
+const lunchStartTimeObj = computed({
+  get: () => stringToTime(configSettings.value.defaultLunchTime.startTime),
+  set: (val: Time | null) => {
+    configSettings.value.defaultLunchTime.startTime = timeToString(val) || '12:00'
+  }
+})
+
+const lunchEndTimeObj = computed({
+  get: () => stringToTime(configSettings.value.defaultLunchTime.endTime),
+  set: (val: Time | null) => {
+    configSettings.value.defaultLunchTime.endTime = timeToString(val) || '13:00'
+  }
+})
+
 // Функции для работы с Bitrix24 API
 const bitrixAPI = {
   call: (method, params) => {
@@ -220,13 +250,6 @@ const placementManager = {
       throw error
     }
   }
-}
-
-// Преобразование Time в строку
-const timeToString = (time: Time | string | null): string | null => {
-  if (!time) return null
-  if (typeof time === 'string') return time
-  return `${time.hour.toString().padStart(2, '0')}:${time.minute.toString().padStart(2, '0')}`
 }
 
 // Сохранение настроек приложения через app.option.set
@@ -553,7 +576,8 @@ onUnmounted(() => {
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-1">Время начала обеда</label>
                       <B24InputTime
-                          v-model="configSettings.defaultLunchTime.startTime"
+                          :model-value="lunchStartTimeObj"
+                          @update:model-value="(val) => lunchStartTimeObj = val"
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
@@ -563,7 +587,8 @@ onUnmounted(() => {
                     <div>
                       <label class="block text-sm font-medium text-gray-700 mb-1">Время завершения обеда</label>
                       <B24InputTime
-                          v-model="configSettings.defaultLunchTime.endTime"
+                          :model-value="lunchEndTimeObj"
+                          @update:model-value="(val) => lunchEndTimeObj = val"
                           :hour-cycle="24"
                           size="md"
                           color="air-primary"
