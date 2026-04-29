@@ -457,6 +457,9 @@ function sendPushNotification(userId: number, mode: 'start' | 'end'): void {
     const notificationKey = mode === 'start' ? 'lunch_start_notification_sent' : 'lunch_end_notification_sent'
     const notificationSent = getStoredFlag(notificationKey)
 
+    console.log('notificationSent')
+    console.log(notificationSent)
+
     if (notificationSent === 'true') {
       return
     }
