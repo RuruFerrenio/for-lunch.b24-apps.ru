@@ -551,7 +551,6 @@ onUnmounted(() => {
                 <div class="mt-4 pt-4 border-t">
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <!-- ✅ Исправлено: теперь передаём Time объект -->
                       <B24InputTime
                           :model-value="configSettings.defaultLunchTime.startTime"
                           @update:model-value="(val) => configSettings.defaultLunchTime.startTime = val"
@@ -563,7 +562,6 @@ onUnmounted(() => {
                       />
                     </div>
                     <div>
-                      <!-- ✅ Исправлено: теперь передаём Time объект -->
                       <B24InputTime
                           :model-value="configSettings.defaultLunchTime.endTime"
                           @update:model-value="(val) => configSettings.defaultLunchTime.endTime = val"
