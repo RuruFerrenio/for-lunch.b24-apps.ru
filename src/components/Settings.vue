@@ -588,11 +588,6 @@ watch(() => formData.value.lunchEnd.method, () => {
                     :disabled="isProcessing"
                     :items="[
                         {
-                            label: 'Автоматическое начало обеда',
-                            value: 'auto',
-                            description: 'Обеденный перерыв начинается автоматически в установленное время'
-                        },
-                        {
                             label: 'Модальное окно с предложением',
                             value: 'modal',
                             description: 'Показывать окно с предложением начать обед'
@@ -640,7 +635,7 @@ watch(() => formData.value.lunchEnd.method, () => {
                   </div>
                   <div>
                     <p class="text-sm text-gray-700">
-                      <span class="font-medium">Автоматическое начало обеда:</span> обеденный перерыв начинается автоматически без участия сотрудника.
+                      <span class="font-medium">Модальное окно:</span> показывается окно с кнопкой "На обед!", пока сотрудник не начнет перерыв.
                     </p>
                   </div>
                 </div>
@@ -650,23 +645,13 @@ watch(() => formData.value.lunchEnd.method, () => {
                   </div>
                   <div>
                     <p class="text-sm text-gray-700">
-                      <span class="font-medium">Модальное окно:</span> показывается окно с кнопкой "На обед!", пока сотрудник не начнет перерыв.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">4</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
                       <span class="font-medium">Сообщение в чате:</span> в чат Битрикс24 отправляется уведомление с предложением начать обед.
                     </p>
                   </div>
                 </div>
                 <div class="flex items-start">
                   <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">5</span>
+                    <span class="text-xs font-medium text-blue-600">4</span>
                   </div>
                   <div>
                     <p class="text-sm text-gray-700">
@@ -732,11 +717,6 @@ watch(() => formData.value.lunchEnd.method, () => {
                     :disabled="isProcessing"
                     :items="[
                         {
-                            label: 'Автоматическое завершение обеда',
-                            value: 'auto',
-                            description: 'Обеденный перерыв завершается автоматически в установленное время'
-                        },
-                        {
                             label: 'Модальное окно с предложением',
                             value: 'modal',
                             description: 'Показывать окно с предложением завершить обед'
@@ -784,7 +764,7 @@ watch(() => formData.value.lunchEnd.method, () => {
                   </div>
                   <div>
                     <p class="text-sm text-gray-700">
-                      <span class="font-medium">Автоматическое завершение обеда:</span> обеденный перерыв завершается автоматически без участия сотрудника.
+                      <span class="font-medium">Модальное окно:</span> показывается окно с кнопкой "За работу!", пока сотрудник не завершит обед.
                     </p>
                   </div>
                 </div>
@@ -794,23 +774,13 @@ watch(() => formData.value.lunchEnd.method, () => {
                   </div>
                   <div>
                     <p class="text-sm text-gray-700">
-                      <span class="font-medium">Модальное окно:</span> показывается окно с кнопкой "За работу!", пока сотрудник не завершит обед.
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-start">
-                  <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">4</span>
-                  </div>
-                  <div>
-                    <p class="text-sm text-gray-700">
                       <span class="font-medium">Сообщение в чате:</span> в чат Битрикс24 отправляется уведомление с предложением завершить обед.
                     </p>
                   </div>
                 </div>
                 <div class="flex items-start">
                   <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                    <span class="text-xs font-medium text-blue-600">5</span>
+                    <span class="text-xs font-medium text-blue-600">4</span>
                   </div>
                   <div>
                     <p class="text-sm text-gray-700">
