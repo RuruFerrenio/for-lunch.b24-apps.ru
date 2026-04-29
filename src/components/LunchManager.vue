@@ -29,6 +29,19 @@ interface BX24Error {
   message?: string
 }
 
+// Функции для работы с localStorage (для синхронизации с фоновым скриптом)
+function setStoredFlag(key: string, value: string, hours: number): void {
+  const data = {
+    value: value,
+    expires: Date.now() + (hours * 60 * 60 * 1000)
+  }
+  localStorage.setItem(key, JSON.stringify(data))
+}
+
+function deleteStoredFlag(key: string): void {
+  localStorage.removeItem(key)
+}
+
 const props = withDefaults(defineProps<{
   mode: LunchMode
   alertaParameters?: Record<string, any>
@@ -91,9 +104,6 @@ const completionMessage = computed(() => {
 })
 
 const buttonText = computed(() => {
-  if (isTimemanAvailable.value === false) {
-    return isStartLunch.value ? 'На обед!' : 'За работу!'
-  }
   return isStartLunch.value ? 'На обед!' : 'За работу!'
 })
 
@@ -384,6 +394,10 @@ const executeAction = async (): Promise<void> => {
 
     // Если timeman недоступен - просто показываем уведомление и закрываем
     if (isTimemanAvailable.value === false) {
+      // Устанавливаем флаг в localStorage, чтобы фоновый скрипт больше не открывал модалку сегодня
+      const notificationKey = isStartLunch.value ? 'lunch_start_notification_sent' : 'lunch_end_notification_sent'
+      setStoredFlag(notificationKey, 'true', 24)
+
       // Имитируем успешное действие без вызова API
       await new Promise(resolve => setTimeout(resolve, 500))
 
@@ -563,14 +577,23 @@ onMounted(() => {
         {{ title }}
       </h1>
 
+      <!-- Информационное сообщение о недоступности timeman -->
+      <div v-if="isTimemanAvailable === false && !isActionCompleted && !error"
+           class="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-start gap-2">
+          <InfoCircleIcon class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div class="text-sm text-amber-800 text-left">
+            <p class="font-medium mb-1">Управление рабочим днем недоступно</p>
+            <p>Функция доступна только на тарифе «Профессиональный».</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Подзаголовок -->
       <p class="text-gray-600 mb-8 whitespace-pre-line" v-if="!isActionCompleted && !error">
         {{ subtitle }}
       </p>
-      <p class="text-gray-600 mb-8" v-else-if="isActionCompleted && isTimemanAvailable === false">
-        {{ completionMessage }}
-      </p>
-      <p class="text-gray-600 mb-8" v-else-if="isActionCompleted && isTimemanAvailable !== false">
+      <p class="text-gray-600 mb-8" v-else-if="isActionCompleted">
         {{ completionMessage }}
       </p>
 
