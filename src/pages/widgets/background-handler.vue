@@ -213,6 +213,7 @@ async function checkTimemanAvailability(): Promise<boolean> {
 
       const methodData = result.data()
       const isAvailable = methodData.isExisting && methodData.isAvailable
+      console.log(`📡 Метод timeman.status ${isAvailable ? 'доступен' : 'недоступен'}`)
       resolve(isAvailable)
     })
   })
@@ -276,6 +277,12 @@ async function loadSettings(): Promise<void> {
       defaultLunchTime.value.endTime = defaultLunchEndTime
     }
 
+    console.log('📋 Настройки загружены:', {
+      lunchStart: lunchStart.value,
+      lunchEnd: lunchEnd.value,
+      weekendActivity: weekendActivity.value,
+      defaultLunchTime: defaultLunchTime.value
+    })
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error)
   }
@@ -298,6 +305,87 @@ function getCurrentLunchEndTime(): string {
     return userLunchTime.value.endTime
   }
   return defaultLunchTime.value.endTime
+}
+
+// Альтернативная проверка времени без использования timeman
+function checkTimeOnly(): void {
+  if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
+
+  if (!isPageVisible) {
+    return
+  }
+
+  // Сброс флагов при смене дня
+  resetDailyFlags()
+
+  getCurrentUserId(function(userId: number) {
+    currentUserId.value = userId
+
+    const now = new Date()
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+    const lunchStartTime = getCurrentLunchStartTime()
+    const lunchEndTime = getCurrentLunchEndTime()
+
+    const lunchStartMinutes = timeToMinutes(lunchStartTime)
+    const lunchEndMinutes = timeToMinutes(lunchEndTime)
+
+    // =============================================
+    // ПРОВЕРКА ДЛЯ НАЧАЛА ОБЕДА (только уведомления, без timeman)
+    // =============================================
+    const isInLunchInterval = currentMinutes >= lunchStartMinutes && currentMinutes <= lunchEndMinutes
+    const isWithinGracePeriod = currentMinutes <= lunchEndMinutes + 30
+    const isValidTimeForStart = currentMinutes >= lunchStartMinutes && isWithinGracePeriod
+
+    if (lunchStart.value.enabled &&
+        isValidTimeForStart &&
+        !startNotificationSent &&
+        !applicationOpened.value) {
+
+      startNotificationSent = true
+      console.log('⏰ Время начала обеда (режим без timeman)')
+
+      if (lunchStart.value.method === 'modal') {
+        openLunchModal('start')
+      } else if (lunchStart.value.method === 'chat') {
+        sendChatNotification(userId, 'start')
+      } else if (lunchStart.value.method === 'push') {
+        sendPushNotification(userId, 'start')
+      } else if (lunchStart.value.method === 'auto') {
+        // В режиме без timeman auto не работает, показываем уведомление
+        console.warn('Auto режим недоступен без timeman, отправляем push уведомление')
+        sendPushNotification(userId, 'start')
+      }
+    }
+
+    // =============================================
+    // ПРОВЕРКА ДЛЯ ЗАВЕРШЕНИЯ ОБЕДА (только уведомления, без timeman)
+    // =============================================
+    const isAfterLunchEnd = currentMinutes >= lunchEndMinutes
+    const isWithinMaxDelay = currentMinutes <= lunchEndMinutes + 60
+    const isValidTimeForEnd = isAfterLunchEnd && isWithinMaxDelay
+
+    if (lunchEnd.value.enabled &&
+        isValidTimeForEnd &&
+        !endNotificationSent &&
+        !applicationOpened.value) {
+
+      endNotificationSent = true
+      console.log('⏰ Время завершения обеда (режим без timeman)')
+
+      if (lunchEnd.value.method === 'modal') {
+        openLunchModal('end')
+      } else if (lunchEnd.value.method === 'chat') {
+        sendChatNotification(userId, 'end')
+      } else if (lunchEnd.value.method === 'push') {
+        sendPushNotification(userId, 'end')
+      } else if (lunchEnd.value.method === 'auto') {
+        // В режиме без timeman auto не работает, показываем уведомление
+        console.warn('Auto режим недоступен без timeman, отправляем push уведомление')
+        sendPushNotification(userId, 'end')
+      }
+    }
+  })
 }
 
 // Проверка, нужно ли сегодня выполнять действия (с учетом выходных)
@@ -387,7 +475,7 @@ function getCurrentUserId(callback: (userId: number) => void): void {
 function pauseWorkday(): void {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
   if (!isTimemanAvailable.value) {
-    console.warn('Метод timeman.status недоступен, пропускаем')
+    console.warn('Метод timeman.status недоступен, пропускаем auto-действие')
     return
   }
 
@@ -404,6 +492,7 @@ function pauseWorkday(): void {
           if (result.error()) {
             console.error('Ошибка при постановке на паузу:', result.error())
           } else {
+            console.log('✅ Рабочий день поставлен на паузу (начало обеда)')
             // После успешной постановки на паузу очищаем флаг уведомления
             deleteStoredFlag('lunch_start_notification_sent')
             startNotificationSent = false
@@ -417,7 +506,7 @@ function pauseWorkday(): void {
 function resumeWorkday(): void {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
   if (!isTimemanAvailable.value) {
-    console.warn('Метод timeman.status недоступен, пропускаем')
+    console.warn('Метод timeman.status недоступен, пропускаем auto-действие')
     return
   }
 
@@ -426,7 +515,7 @@ function resumeWorkday(): void {
 
     isProcessing.value = true
     BX24.callMethod(
-        'timeman.resume',
+        'timeman.open',
         {},
         function(result: any) {
           isProcessing.value = false
@@ -434,6 +523,7 @@ function resumeWorkday(): void {
           if (result.error()) {
             console.error('Ошибка при возобновлении:', result.error())
           } else {
+            console.log('✅ Рабочий день возобновлен (завершение обеда)')
             // После успешного возобновления очищаем флаг уведомления
             deleteStoredFlag('lunch_end_notification_sent')
             endNotificationSent = false
@@ -456,9 +546,6 @@ function sendPushNotification(userId: number, mode: 'start' | 'end'): void {
 
     const notificationKey = mode === 'start' ? 'lunch_start_notification_sent' : 'lunch_end_notification_sent'
     const notificationSent = getStoredFlag(notificationKey)
-
-    console.log('notificationSent')
-    console.log(notificationSent)
 
     if (notificationSent === 'true') {
       return
@@ -503,6 +590,8 @@ function sendPushNotification(userId: number, mode: 'start' | 'end'): void {
           if (result.error()) {
             console.error(`Ошибка отправки push-уведомления для ${mode === 'start' ? 'начала' : 'завершения'} обеда:`, result.error())
             deleteStoredFlag(notificationKey)
+          } else {
+            console.log(`📨 Push-уведомление отправлено (${mode === 'start' ? 'начало' : 'завершение'} обеда)`)
           }
         }
     )
@@ -563,6 +652,8 @@ function sendChatNotification(userId: number, mode: 'start' | 'end'): void {
           if (result.error()) {
             console.error(`Ошибка отправки сообщения в чат для ${mode === 'start' ? 'начала' : 'завершения'} обеда:`, result.error())
             deleteStoredFlag(notificationKey)
+          } else {
+            console.log(`💬 Сообщение в чат отправлено (${mode === 'start' ? 'начало' : 'завершение'} обеда)`)
           }
         }
     )
@@ -576,10 +667,6 @@ function sendChatNotification(userId: number, mode: 'start' | 'end'): void {
 function openLunchModal(mode: 'start' | 'end'): void {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
   if (applicationOpened.value) return
-  if (!isTimemanAvailable.value) {
-    console.warn('Метод timeman.status недоступен, пропускаем')
-    return
-  }
 
   shouldAllowActivity(function(allow: boolean) {
     if (!allow) return
@@ -610,12 +697,15 @@ function openLunchModal(mode: 'start' | 'end'): void {
     BX24.openApplication({}, function() {
       onModalClosed(mode)
     }, modalSettings)
+
+    console.log(`📱 Открыто модальное окно (${mode === 'start' ? 'начало' : 'завершение'} обеда)`)
   })
 }
 
 function onModalClosed(mode: 'start' | 'end'): void {
   applicationOpened.value = false
   clearTempFlags()
+  console.log(`🚪 Модальное окно закрыто (${mode === 'start' ? 'начало' : 'завершение'} обеда)`)
 }
 
 // ==========================================================================
@@ -632,18 +722,15 @@ function timeToMinutes(timeStr: string): number {
 function resetDailyFlags(): void {
   const today = new Date().toDateString()
   if (lastCheckedDate !== today) {
+    console.log('🔄 Сброс дневных флагов уведомлений')
     startNotificationSent = false
     endNotificationSent = false
     lastCheckedDate = today
   }
 }
 
-// Проверка статуса рабочего дня и выполнение действий
+// Основная функция проверки (адаптивная)
 function checkWorkdayStatus(): void {
-  if (isTimemanAvailable.value === false) {
-    return
-  }
-
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
 
   if (!isPageVisible) {
@@ -653,6 +740,14 @@ function checkWorkdayStatus(): void {
   // Сброс флагов при смене дня
   resetDailyFlags()
 
+  // Если timeman недоступен - используем упрощенную проверку по времени
+  if (isTimemanAvailable.value === false) {
+    console.log('🔄 Используем упрощенный режим проверки (без timeman)')
+    checkTimeOnly()
+    return
+  }
+
+  // Полный режим с использованием timeman
   getCurrentUserId(function(userId: number) {
     currentUserId.value = userId
 
@@ -662,6 +757,8 @@ function checkWorkdayStatus(): void {
         function(result: any) {
           if (result.error()) {
             console.error('Ошибка проверки статуса рабочего дня:', result.error())
+            // При ошибке timeman переключаемся на упрощенный режим
+            checkTimeOnly()
             return
           }
 
@@ -678,31 +775,17 @@ function checkWorkdayStatus(): void {
           // =============================================
           // ПРОВЕРКА ДЛЯ НАЧАЛА ОБЕДА (постановка на паузу)
           // =============================================
-          // Условия:
-          // 1. Функция включена
-          // 2. Рабочий день открыт (STATUS === 'OPENED')
-          // 3. Текущее время >= времени начала обеда
-          // 4. Текущее время <= времени окончания обеда + 30 минут (grace period)
-          // 5. Еще не отправляли уведомление сегодня
-          // 6. Модальное окно еще не открыто
-          // 7. Методы timeman доступны
-
-          const isInLunchInterval = currentMinutes >= lunchStartMinutes && currentMinutes <= lunchEndMinutes
-          const isWithinGracePeriod = currentMinutes <= lunchEndMinutes + 30 // 30 минут после окончания обеда
+          const isWithinGracePeriod = currentMinutes <= lunchEndMinutes + 30
           const isValidTimeForStart = currentMinutes >= lunchStartMinutes && isWithinGracePeriod
 
           if (lunchStart.value.enabled &&
-              isTimemanAvailable.value === true &&
               workDayParams.STATUS === 'OPENED' &&
               isValidTimeForStart &&
               !startNotificationSent &&
               !applicationOpened.value) {
 
             startNotificationSent = true
-
-            console.log('Метод')
-            console.log(lunchStart.value.method)
-            console.log(lunchEnd.value.method)
+            console.log('⏰ Время начала обеда (полный режим)')
 
             if (lunchStart.value.method === 'modal') {
               openLunchModal('start')
@@ -718,27 +801,18 @@ function checkWorkdayStatus(): void {
           // =============================================
           // ПРОВЕРКА ДЛЯ ЗАВЕРШЕНИЯ ОБЕДА (возобновление)
           // =============================================
-          // Условия:
-          // 1. Функция включена
-          // 2. Рабочий день на паузе (STATUS === 'PAUSED')
-          // 3. Текущее время >= времени окончания обеда
-          // 4. Текущее время <= времени окончания обеда + 60 минут (максимальная задержка)
-          // 5. Еще не отправляли уведомление сегодня
-          // 6. Модальное окно еще не открыто
-          // 7. Методы timeman доступны
-
           const isAfterLunchEnd = currentMinutes >= lunchEndMinutes
-          const isWithinMaxDelay = currentMinutes <= lunchEndMinutes + 60 // 60 минут после окончания обеда
+          const isWithinMaxDelay = currentMinutes <= lunchEndMinutes + 60
           const isValidTimeForEnd = isAfterLunchEnd && isWithinMaxDelay
 
           if (lunchEnd.value.enabled &&
-              isTimemanAvailable.value === true &&
               workDayParams.STATUS === 'PAUSED' &&
               isValidTimeForEnd &&
               !endNotificationSent &&
               !applicationOpened.value) {
 
             endNotificationSent = true
+            console.log('⏰ Время завершения обеда (полный режим)')
 
             if (lunchEnd.value.method === 'modal') {
               openLunchModal('end')
@@ -754,13 +828,11 @@ function checkWorkdayStatus(): void {
           // =============================================
           // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА ОТ ПОВТОРНЫХ ВЫЗОВОВ
           // =============================================
-          // Если рабочий день уже на паузе - сбрасываем флаг начала обеда
           if (workDayParams.STATUS === 'PAUSED') {
             startNotificationSent = true
             setStoredFlag('lunch_start_notification_sent', 'true', 24)
           }
 
-          // Если рабочий день активен - сбрасываем флаг завершения обеда
           if (workDayParams.STATUS === 'OPENED') {
             endNotificationSent = true
             setStoredFlag('lunch_end_notification_sent', 'true', 24)
@@ -782,12 +854,15 @@ function startPeriodicCheck(): void {
   periodicCheckInterval = setInterval(() => {
     checkWorkdayStatus()
   }, MODAL_CONFIG.CHECK_INTERVAL_SECONDS * 1000)
+
+  console.log(`Запущена периодическая проверка (интервал: ${MODAL_CONFIG.CHECK_INTERVAL_SECONDS} сек)`)
 }
 
 function stopPeriodicCheck(): void {
   if (periodicCheckInterval) {
     clearInterval(periodicCheckInterval)
     periodicCheckInterval = null
+    console.log('Периодическая проверка остановлена')
   }
 }
 
@@ -796,11 +871,11 @@ function handleVisibilityChange(): void {
   isPageVisible = !document.hidden
 
   if (isPageVisible && !wasVisible) {
-    if (isTimemanAvailable.value === true) {
-      startPeriodicCheck()
-      checkWorkdayStatus()
-    }
+    console.log('Страница стала видимой')
+    startPeriodicCheck()
+    checkWorkdayStatus()
   } else if (!isPageVisible && wasVisible) {
+    console.log('Страница скрыта')
     stopPeriodicCheck()
   }
 }
@@ -822,6 +897,7 @@ async function updateUserLunchTime(startTime: Time | null, endTime: Time | null)
     endNotificationSent = false
     deleteStoredFlag('lunch_start_notification_sent')
     deleteStoredFlag('lunch_end_notification_sent')
+    console.log('✅ Время обеда обновлено, флаги уведомлений сброшены')
   }
 
   return success
@@ -843,12 +919,18 @@ function getUserLunchTime(): UserLunchTime {
   }
 }
 
+// Получить статус доступности timeman
+function getTimemanAvailability(): boolean | null {
+  return isTimemanAvailable.value
+}
+
 // Экспортируем методы для использования в других компонентах
 defineExpose({
   updateUserLunchTime,
   getCurrentLunchTimes,
   getUserLunchTime,
-  loadUserLunchTimeFromUserOptions
+  loadUserLunchTimeFromUserOptions,
+  getTimemanAvailability
 })
 
 // ==========================================================================
@@ -856,6 +938,8 @@ defineExpose({
 // ==========================================================================
 
 onMounted(async () => {
+  console.log('🚀 Компонент инициализирован')
+
   // Очищаем временные флаги
   clearTempFlags()
 
@@ -866,20 +950,20 @@ onMounted(async () => {
   if (typeof BX24 !== 'undefined' && BX24.init) {
     BX24.init(async () => {
       isBitrixLoaded.value = true
+      console.log('✅ BX24 инициализирован')
 
       // Проверяем доступность методов timeman
       isTimemanAvailable.value = await checkTimemanAvailability()
 
-      if (!isTimemanAvailable.value) {
-        console.warn('Методы timeman не доступны. Приложение будет работать в режиме ожидания.')
-        await loadSettings()
-        return
-      }
-
-      // Загружаем индивидуальные настройки пользователя из user.options
-      await loadUserLunchTimeFromUserOptions()
-
+      // В любом случае загружаем настройки
       await loadSettings()
+
+      // Если timeman доступен - загружаем индивидуальные настройки пользователя
+      if (isTimemanAvailable.value) {
+        await loadUserLunchTimeFromUserOptions()
+      } else {
+        console.log('ℹ️ Режим работы без timeman - индивидуальные настройки не загружаются')
+      }
 
       // Выполняем первую проверку
       checkWorkdayStatus()
@@ -890,11 +974,12 @@ onMounted(async () => {
       }
     })
   } else {
-    console.warn('BX24 не обнаружен')
+    console.warn('⚠️ BX24 не обнаружен')
   }
 })
 
 onUnmounted(() => {
+  console.log('🔚 Компонент уничтожен')
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   stopPeriodicCheck()
   clearTempFlags()

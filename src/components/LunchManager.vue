@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useToast } from '@bitrix24/b24ui-nuxt/composables/useToast'
 import CoffeeIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
 import BriefcaseIcon from '@bitrix24/b24icons-vue/outline/PowerIcon'
+import InfoCircleIcon from '@bitrix24/b24icons-vue/main/InfoCircleIcon'
 
 type LunchMode = 'start' | 'end'
 type WorkdayStatus = 'OPENED' | 'CLOSED' | 'PAUSED' | 'EXPIRED'
@@ -45,6 +46,7 @@ const error = ref<string | null>(null)
 const statusMessage = ref('')
 const workdayInfo = ref<WorkdayInfo | null>(null)
 const isBX24Ready = ref(false)
+const isTimemanAvailable = ref<boolean | null>(null) // null - не проверено, false - недоступен, true - доступен
 
 const currentUser = ref<CurrentUser>({
   id: 0,
@@ -62,20 +64,36 @@ const title = computed(() => {
   return isStartLunch.value ? 'Обеденный перерыв' : 'Возвращение с обеда'
 })
 
+// Динамический подзаголовок в зависимости от доступности timeman
 const subtitle = computed(() => {
-  if (isStartLunch.value) {
-    return 'Поставьте рабочий день на паузу,\nчтобы уйти на обед'
+  if (isActionCompleted.value) return ''
+
+  if (isTimemanAvailable.value === false) {
+    return isStartLunch.value
+        ? 'Не забудьте поставить рабочий день на паузу вручную'
+        : 'Не забудьте возобновить рабочий день вручную'
   }
-  return 'Возобновите рабочий день,\nчтобы продолжить работу'
+
+  return isStartLunch.value
+      ? 'Поставьте рабочий день на паузу,\nчтобы уйти на обед'
+      : 'Возобновите рабочий день,\nчтобы продолжить работу'
 })
 
 const completionMessage = computed(() => {
+  if (isTimemanAvailable.value === false) {
+    return isStartLunch.value
+        ? 'Не забудьте поставить рабочий день на паузу вручную'
+        : 'Не забудьте возобновить рабочий день вручную'
+  }
   return isStartLunch.value
       ? 'Обеденный перерыв начался'
       : 'Рабочий день возобновлен'
 })
 
 const buttonText = computed(() => {
+  if (isTimemanAvailable.value === false) {
+    return isStartLunch.value ? 'Я ушел на обед' : 'Я вернулся с обеда'
+  }
   return isStartLunch.value ? 'На обед!' : 'За работу!'
 })
 
@@ -136,6 +154,35 @@ const formatDateTime = (dateTimeStr?: string): string => {
   } catch {
     return dateTimeStr
   }
+}
+
+// ==========================================================================
+// ПРОВЕРКА ДОСТУПНОСТИ МЕТОДОВ TIMEMAN
+// ==========================================================================
+
+const checkTimemanAvailability = async (): Promise<boolean> => {
+  if (typeof window === 'undefined' || typeof (window as any).BX24 === 'undefined') {
+    return false
+  }
+
+  const BX24 = (window as any).BX24
+
+  return new Promise((resolve) => {
+    BX24.callMethod('method.get', {
+      name: 'timeman.status'
+    }, (result: any) => {
+      if (result.error()) {
+        console.warn('⚠️ Метод method.get вернул ошибку:', result.error())
+        resolve(false)
+        return
+      }
+
+      const methodData = result.data()
+      const isAvailable = methodData.isExisting && methodData.isAvailable
+      console.log(`📡 Метод timeman.status ${isAvailable ? 'доступен' : 'недоступен'}`)
+      resolve(isAvailable)
+    })
+  })
 }
 
 const loadCurrentUser = async (): Promise<CurrentUser> => {
@@ -207,6 +254,7 @@ const loadCurrentUser = async (): Promise<CurrentUser> => {
 
 const getCurrentWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
   if (typeof window === 'undefined' || typeof (window as any).BX24 === 'undefined') return null
+  if (isTimemanAvailable.value !== true) return null
 
   const BX24 = (window as any).BX24
 
@@ -228,6 +276,10 @@ const getCurrentWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
 }
 
 const pauseWorkday = async (): Promise<WorkdayInfo> => {
+  if (isTimemanAvailable.value !== true) {
+    throw new Error('Функция управления рабочим днем недоступна на вашем тарифе')
+  }
+
   const BX24 = (window as any).BX24
 
   const status = await getCurrentWorkdayStatus()
@@ -262,12 +314,14 @@ const pauseWorkday = async (): Promise<WorkdayInfo> => {
 }
 
 const resumeWorkday = async (): Promise<WorkdayInfo> => {
+  if (isTimemanAvailable.value !== true) {
+    throw new Error('Функция управления рабочим днем недоступна на вашем тарифе')
+  }
+
   const BX24 = (window as any).BX24
 
   const status = await getCurrentWorkdayStatus()
 
-  // Если рабочий день на паузе - используем timeman.open для возобновления
-  // Если рабочий день закрыт - тоже используем timeman.open для начала нового дня
   if (!status || (status.STATUS !== 'PAUSED' && status.STATUS !== 'CLOSED')) {
     if (status?.STATUS === 'OPENED') {
       throw new Error('Рабочий день уже активен')
@@ -281,7 +335,6 @@ const resumeWorkday = async (): Promise<WorkdayInfo> => {
     params.USER_ID = currentUser.value.id
   }
 
-  // timeman.open возобновляет рабочий день после паузы или начинает новый день
   const result = await new Promise<WorkdayInfo>((resolve, reject) => {
     BX24.callMethod('timeman.open', params, (result: any) => {
       if (result.error()) {
@@ -306,6 +359,10 @@ const closeApplication = (): void => {
   }
 }
 
+// ==========================================================================
+// ОСНОВНОЕ ДЕЙСТВИЕ (адаптивное)
+// ==========================================================================
+
 const executeAction = async (): Promise<void> => {
   if (isProcessing.value || isActionCompleted.value) return
 
@@ -323,8 +380,32 @@ const executeAction = async (): Promise<void> => {
 
   try {
     isProcessing.value = true
-    statusMessage.value = isStartLunch.value ? 'Ставим рабочий день на паузу...' : 'Возобновляем рабочий день...'
+    statusMessage.value = isStartLunch.value ? 'Обработка...' : 'Обработка...'
 
+    // Если timeman недоступен - просто показываем уведомление и закрываем
+    if (isTimemanAvailable.value === false) {
+      // Имитируем успешное действие без вызова API
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      isActionCompleted.value = true
+      const successMessage = isStartLunch.value
+          ? 'Не забудьте поставить рабочий день на паузу вручную'
+          : 'Не забудьте возобновить рабочий день вручную'
+      statusMessage.value = successMessage
+
+      toast.add({
+        description: successMessage,
+        variant: 'info'
+      })
+
+      setTimeout(() => {
+        closeApplication()
+      }, props.autoCloseDelay)
+
+      return
+    }
+
+    // Полный режим с вызовом timeman методов
     let result: WorkdayInfo
     if (isStartLunch.value) {
       result = await pauseWorkday()
@@ -380,6 +461,15 @@ const initializeComponent = async (): Promise<void> => {
     const user = await loadCurrentUser()
     currentUser.value = user
 
+    // Проверяем доступность timeman
+    isTimemanAvailable.value = await checkTimemanAvailability()
+
+    // Если timeman недоступен, не пытаемся получить статус
+    if (isTimemanAvailable.value !== true) {
+      console.log('ℹ️ Режим работы без timeman - управление только через уведомления')
+      return
+    }
+
     const status = await getCurrentWorkdayStatus()
     if (status) {
       workdayInfo.value = status
@@ -395,8 +485,6 @@ const initializeComponent = async (): Promise<void> => {
       }
 
       if (!isStartLunch.value && status.STATUS === 'CLOSED') {
-        // Если рабочий день закрыт, показываем сообщение, но не блокируем действие
-        // timeman.open сможет начать новый рабочий день
         statusMessage.value = 'Рабочий день не начат. Будет начат новый рабочий день'
       }
 
@@ -451,7 +539,7 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center bg-white p-4">
-    <div class="text-center w-full">
+    <div class="text-center w-full max-w-md mx-auto">
       <!-- Иконка -->
       <div class="mb-8 flex justify-center">
         <div class="w-24 h-24 rounded-full flex items-center justify-center"
@@ -475,11 +563,26 @@ onMounted(() => {
         {{ title }}
       </h1>
 
+      <!-- Информационное сообщение о недоступности timeman -->
+      <div v-if="isTimemanAvailable === false && !isActionCompleted && !error"
+           class="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div class="flex items-start gap-2">
+          <InfoCircleIcon class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div class="text-sm text-amber-800 text-left">
+            <p class="font-medium mb-1">Управление рабочим днем недоступно</p>
+            <p>Функция доступна только на тарифе «Профессиональный».</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Подзаголовок -->
       <p class="text-gray-600 mb-8 whitespace-pre-line" v-if="!isActionCompleted && !error">
         {{ subtitle }}
       </p>
-      <p class="text-gray-600 mb-8" v-else-if="isActionCompleted">
+      <p class="text-gray-600 mb-8" v-else-if="isActionCompleted && isTimemanAvailable === false">
+        {{ completionMessage }}
+      </p>
+      <p class="text-gray-600 mb-8" v-else-if="isActionCompleted && isTimemanAvailable !== false">
         {{ completionMessage }}
       </p>
 

@@ -90,22 +90,24 @@ const defaultLunchEnd = ref<string | null>(null)
 
 // Вычисляемые свойства для кнопок
 const canPauseWorkday = computed(() => {
-  return workdayInfo.value && workdayInfo.value.STATUS === 'OPENED'
+  return isTimemanAvailable.value === true && workdayInfo.value && workdayInfo.value.STATUS === 'OPENED'
 })
 
 const canResumeWorkday = computed(() => {
-  return workdayInfo.value && workdayInfo.value.STATUS === 'PAUSED'
+  return isTimemanAvailable.value === true && workdayInfo.value && workdayInfo.value.STATUS === 'PAUSED'
 })
 
-// Кнопка активна только если день открыт или на паузе
+// Кнопка активна только если день открыт или на паузе И доступен timeman
 const isActionButtonDisabled = computed(() => {
-  return !canPauseWorkday.value && !canResumeWorkday.value
+  return isTimemanAvailable.value !== true || (!canPauseWorkday.value && !canResumeWorkday.value)
 })
 
 const buttonText = computed(() => {
+  if (!isTimemanAvailable.value) return 'Управление обедом недоступно'
   if (canPauseWorkday.value) return 'На обед!'
   if (canResumeWorkday.value) return 'За работу!'
-  return 'Рабочий день не начат'
+  if (workdayInfo.value?.STATUS === 'CLOSED') return 'Рабочий день не начат'
+  return 'Управление обедом'
 })
 
 const buttonIcon = computed(() => {
@@ -115,6 +117,7 @@ const buttonIcon = computed(() => {
 })
 
 const buttonColor = computed(() => {
+  if (!isTimemanAvailable.value) return 'air-secondary-accent'
   if (canPauseWorkday.value) return 'air-primary'
   if (canResumeWorkday.value) return 'air-primary-success'
   return 'air-secondary-accent'
@@ -122,11 +125,7 @@ const buttonColor = computed(() => {
 
 // Показывать ли основной контент
 const showMainContent = computed(() => {
-  return isTimemanAvailable.value === true && !error.value
-})
-
-const showUnavailableMessage = computed(() => {
-  return isTimemanAvailable.value === false
+  return !error.value
 })
 
 // Форматирование времени обеда для отображения
@@ -399,7 +398,7 @@ const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
 }
 
 const getWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
-  if (!isTimemanAvailable.value) {
+  if (isTimemanAvailable.value !== true) {
     return null
   }
 
@@ -426,7 +425,7 @@ const getWorkdayStatus = async (): Promise<WorkdayInfo | null> => {
 
 const pauseWorkdayAPI = async (): Promise<void> => {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
-  if (!isTimemanAvailable.value) {
+  if (isTimemanAvailable.value !== true) {
     throw new Error('Методы timeman недоступны')
   }
 
@@ -445,7 +444,7 @@ const pauseWorkdayAPI = async (): Promise<void> => {
 // timeman.open возобновляет рабочий день после паузы
 const resumeWorkdayAPI = async (): Promise<void> => {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
-  if (!isTimemanAvailable.value) {
+  if (isTimemanAvailable.value !== true) {
     throw new Error('Методы timeman недоступны')
   }
 
@@ -467,7 +466,6 @@ const resumeWorkdayAPI = async (): Promise<void> => {
 
 const refreshData = async () => {
   if (isRefreshing.value) return
-  if (isTimemanAvailable.value === false) return
 
   isRefreshing.value = true
 
@@ -493,7 +491,7 @@ const handlePauseWorkday = async () => {
   if (isProcessing.value) return
   if (!canPauseWorkday.value) return
 
-  if (isTimemanAvailable.value === false) {
+  if (isTimemanAvailable.value !== true) {
     toast.add({
       description: 'Функция недоступна на вашем тарифе. Требуется тариф "Профессиональный"',
       variant: 'error'
@@ -527,7 +525,7 @@ const handleResumeWorkday = async () => {
   if (isProcessing.value) return
   if (!canResumeWorkday.value) return
 
-  if (isTimemanAvailable.value === false) {
+  if (isTimemanAvailable.value !== true) {
     toast.add({
       description: 'Функция недоступна на вашем тарифе. Требуется тариф "Профессиональный"',
       variant: 'error'
@@ -613,15 +611,16 @@ onMounted(async () => {
 
       isTimemanAvailable.value = await checkTimemanAvailability()
 
-      if (!isTimemanAvailable.value) {
-        isLoading.value = false
-        return
-      }
-
       // Загружаем пользовательские настройки (user.option) - если нет, будут использованы глобальные
       await loadLunchSettingsFromUserOptions()
       await refreshData()
-      startAutoRefresh()
+
+      // Запускаем автообновление только если timeman доступен
+      if (isTimemanAvailable.value) {
+        startAutoRefresh()
+      }
+
+      isLoading.value = false
     })
   } else if (typeof BX24 !== 'undefined') {
     isBitrixLoaded.value = true
@@ -629,19 +628,18 @@ onMounted(async () => {
     // Сначала загружаем глобальные настройки (appOption)
     await loadGlobalLunchSettings()
 
-    checkTimemanAvailability().then(async (isAvailable) => {
-      isTimemanAvailable.value = isAvailable
+    isTimemanAvailable.value = await checkTimemanAvailability()
 
-      if (!isAvailable) {
-        isLoading.value = false
-        return
-      }
+    // Загружаем пользовательские настройки (user.option) - если нет, будут использованы глобальные
+    await loadLunchSettingsFromUserOptions()
+    await refreshData()
 
-      // Загружаем пользовательские настройки (user.option) - если нет, будут использованы глобальные
-      await loadLunchSettingsFromUserOptions()
-      await refreshData()
+    // Запускаем автообновление только если timeman доступен
+    if (isTimemanAvailable.value) {
       startAutoRefresh()
-    })
+    }
+
+    isLoading.value = false
   } else {
     isLoading.value = false
     error.value = 'API Битрикс24 не обнаружен. Убедитесь, что приложение запущено в среде Битрикс24.'
@@ -663,7 +661,7 @@ onUnmounted(() => {
     <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-white">
       <div class="flex items-center justify-between">
         <B24User
-            v-if="currentUser && showMainContent"
+            v-if="currentUser && !error"
             :name="currentUser.FULL_NAME"
             :description="currentUser.WORK_POSITION || 'Должность не указана'"
             size="lg"
@@ -677,7 +675,7 @@ onUnmounted(() => {
             }"
             class="truncate overflow-visible"
         />
-        <div v-else-if="!showUnavailableMessage" class="flex items-center gap-3">
+        <div v-else-if="!error" class="flex items-center gap-3">
           <div class="p-2 bg-blue-100 rounded-full">
             <RestaurantIcon class="w-5 h-5 text-blue-600" />
           </div>
@@ -685,7 +683,7 @@ onUnmounted(() => {
         </div>
 
         <B24Button
-            v-if="showMainContent"
+            v-if="!error"
             @click="refreshData"
             :disabled="isRefreshing"
             variant="ghost"
@@ -697,48 +695,38 @@ onUnmounted(() => {
         >
         </B24Button>
       </div>
-      <div v-if="currentUser && showMainContent" class="mt-2 text-xs text-gray-500 pl-12">
+      <div v-if="currentUser && !error" class="mt-2 text-xs text-gray-500 pl-12">
         {{ currentUser.EMAIL }}
       </div>
     </div>
 
     <!-- Содержимое -->
     <div class="p-6">
-      <!-- Сообщение о недоступности -->
-      <div v-if="showUnavailableMessage" class="text-center py-8">
-        <div class="mb-4">
-          <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-        </div>
-        <h3 class="text-lg font-semibold text-gray-900 mb-2">
-          Функция недоступна
-        </h3>
-        <p class="text-gray-600 mb-2">
-          Для работы с учетом рабочего времени требуется тариф
-        </p>
-        <p class="text-lg font-bold text-blue-600 mb-4">
-          «Профессиональный»
-        </p>
-        <p class="text-sm text-gray-500">
-          Пожалуйста, обратитесь к администратору вашего Битрикс24<br>
-          для перехода на соответствующий тарифный план.
-        </p>
-      </div>
-
       <!-- Загрузка -->
-      <div v-else-if="isLoading && showMainContent" class="flex items-center justify-center py-8">
+      <div v-if="isLoading" class="flex items-center justify-center py-8">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
 
       <!-- Ошибка -->
-      <div v-else-if="error && showMainContent" class="text-center py-6">
+      <div v-else-if="error && !isLoading" class="text-center py-6">
         <div class="text-red-600 mb-3 text-sm">{{ error }}</div>
         <B24Button size="sm" @click="refreshData">Попробовать снова</B24Button>
       </div>
 
       <!-- Данные -->
-      <div v-else-if="showMainContent">
+      <div v-else>
+        <!-- Информационное сообщение о недоступности методов timeman -->
+        <div v-if="isTimemanAvailable === false" class="mb-4">
+          <div class="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <InfoCircleIcon class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div class="text-sm text-amber-800">
+              <p class="font-medium mb-1">Управление обедом недоступно</p>
+              <p>Остановка и возобновление рабочего дня через приложение доступны только на тарифе «Профессиональный».</p>
+              <p class="text-xs mt-1 text-amber-700">Вы можете продолжать настраивать время обеда, но управление рабочим днем будет недоступно.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Индикатор загрузки настроек -->
         <div v-if="isLoadingSettings" class="flex justify-center items-center py-4">
           <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
@@ -822,6 +810,7 @@ onUnmounted(() => {
               :color="buttonColor"
               size="lg"
               class="w-full"
+              :title="isTimemanAvailable === false ? 'Остановка и возобновление рабочего дня через приложение доступны только на тарифе «Профессиональный»' : ''"
           >
             <template #leading>
               <svg v-if="isProcessing" class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -832,7 +821,10 @@ onUnmounted(() => {
             {{ isProcessing ? 'Обработка...' : buttonText }}
           </B24Button>
 
-          <div v-if="isActionButtonDisabled && workdayInfo?.STATUS === 'CLOSED'" class="text-center text-sm text-gray-400 py-2">
+          <div v-if="isTimemanAvailable === false" class="text-center text-xs text-gray-400 py-2">
+            ⚡ Функция остановки и возобновления рабочего дня доступна только на тарифе «Профессиональный»
+          </div>
+          <div v-else-if="isActionButtonDisabled && workdayInfo?.STATUS === 'CLOSED'" class="text-center text-sm text-gray-400 py-2">
             ⏰ Начните рабочий день в Битрикс24, чтобы управлять обедом
           </div>
         </div>
