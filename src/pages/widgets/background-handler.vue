@@ -70,7 +70,7 @@ let isPageVisible = true
 // Конфигурация модальных окон
 const MODAL_CONFIG = {
   WIDTH: 500,
-  DYNAMIC_PAGE_PATH: '/marketplace/view/app.69e7a5997e44b3.48094201/',
+  DYNAMIC_PAGE_PATH: '/marketplace/view/app.69ef1f52649017.42730927/',
   CHECK_INTERVAL_SECONDS: 30 // Интервал проверки в секундах
 }
 
