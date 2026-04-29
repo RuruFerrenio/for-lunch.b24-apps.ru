@@ -103,11 +103,11 @@ const isActionButtonDisabled = computed(() => {
 })
 
 const buttonText = computed(() => {
-  if (!isTimemanAvailable.value) return 'Управление обедом недоступно'
+  if (!isTimemanAvailable.value) return 'Управление рабочим днем недоступно'
   if (canPauseWorkday.value) return 'На обед!'
   if (canResumeWorkday.value) return 'За работу!'
   if (workdayInfo.value?.STATUS === 'CLOSED') return 'Рабочий день не начат'
-  return 'Управление обедом'
+  return 'Управление рабочим днем'
 })
 
 const buttonIcon = computed(() => {
@@ -715,18 +715,6 @@ onUnmounted(() => {
 
       <!-- Данные -->
       <div v-else>
-        <!-- Информационное сообщение о недоступности методов timeman -->
-        <div v-if="isTimemanAvailable === false" class="mb-4">
-          <div class="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <InfoCircleIcon class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div class="text-sm text-amber-800">
-              <p class="font-medium mb-1">Управление обедом недоступно</p>
-              <p>Остановка и возобновление рабочего дня через приложение доступны только на тарифе «Профессиональный».</p>
-              <p class="text-xs mt-1 text-amber-700">Вы можете продолжать настраивать время обеда, но управление рабочим днем будет недоступно.</p>
-            </div>
-          </div>
-        </div>
-
         <!-- Индикатор загрузки настроек -->
         <div v-if="isLoadingSettings" class="flex justify-center items-center py-4">
           <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
