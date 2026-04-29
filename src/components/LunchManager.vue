@@ -566,7 +566,7 @@ onMounted(() => {
               height="20px"
               viewBox="0 -960 960 960"
               width="20px"
-              fill="#009DDB"
+              fill="currentColor"
               class="w-12 h-12"
               :class="isStartLunch ? 'text-blue-600' : 'text-green-600'"
           >
