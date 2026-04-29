@@ -688,10 +688,27 @@ function openLunchModal(mode: 'start' | 'end'): void {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
   if (applicationOpened.value) return
 
+  // Проверяем флаг в localStorage только если timeman недоступен
+  if (isTimemanAvailable.value === false) {
+    const notificationKey = mode === 'start' ? 'lunch_start_notification_sent' : 'lunch_end_notification_sent'
+    const notificationSent = getStoredFlag(notificationKey)
+
+    if (notificationSent === 'true') {
+      console.log(`Уведомление о ${mode === 'start' ? 'начале' : 'завершении'} обеда уже было отправлено сегодня, пропускаем`)
+      return
+    }
+  }
+
   shouldAllowActivity(function(allow: boolean) {
     if (!allow) return
 
     applicationOpened.value = true
+
+    // Устанавливаем флаг только если timeman недоступен
+    if (isTimemanAvailable.value === false) {
+      const notificationKey = mode === 'start' ? 'lunch_start_notification_sent' : 'lunch_end_notification_sent'
+      setStoredFlag(notificationKey, 'true', 24)
+    }
 
     const modalTitle = mode === 'start' ? 'Обеденный перерыв' : 'Возвращение с обеда'
     const bgColor = mode === 'start' ? 'primary' : 'success'
