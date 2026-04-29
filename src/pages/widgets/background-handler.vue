@@ -622,6 +622,15 @@ function openLunchModal(mode: 'start' | 'end'): void {
   if (!isBitrixLoaded.value || typeof BX24 === 'undefined') return
   if (applicationOpened.value) return
 
+  if (isTimemanAvailable.value === false) {
+    const notificationKey = mode === 'start' ? 'lunch_start_notification_sent' : 'lunch_end_notification_sent'
+    const notificationSent = getStoredFlag(notificationKey)
+
+    if (notificationSent === 'true') {
+      return
+    }
+  }
+
   // Если timeman недоступен - всё равно открываем модалку для ручного управления
   // (пользователь сможет вручную поставить паузу/возобновить)
 
