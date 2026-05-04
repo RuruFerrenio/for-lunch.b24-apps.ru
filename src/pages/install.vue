@@ -487,7 +487,7 @@ onUnmounted(() => {
                 </li>
                 <li class="flex items-start">
                   <CheckIcon class="w-4 h-4 md:w-5 md:h-5 text-green-500 mr-2 md:mr-3 flex-shrink-0 mt-0.5" />
-                  <span class="text-sm md:text-base text-gray-700">Настройка времени обеда по умолчанию</span>
+                  <span class="text-sm md:text-base text-gray-700">Настройка времени обеда для всей компании по умолчанию</span>
                 </li>
               </ul>
             </div>
